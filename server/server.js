@@ -1,15 +1,102 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
+// アップロードされたファイルの保存先を設定
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = path.join(__dirname, '../uploads');
+        // アップロードディレクトリが存在しない場合は作成
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        // オリジナルのファイル名を保持
+        cb(null, file.originalname);
+    }
+});
+
+const upload = multer({ storage: storage });
+
 // SQLite データベース接続
-const db = new sqlite3.Database(path.join(__dirname, '../research.db'), (err) => {
+const dbPath = path.join(__dirname, '../data/research.db');
+const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('データベース接続エラー:', err);
     } else {
         console.log('データベースに接続しました');
+        
+        // テーブルの初期化
+        db.serialize(() => {
+            // researcher_numbers テーブルの作成
+            db.run(`CREATE TABLE IF NOT EXISTS researcher_numbers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name TEXT NOT NULL,
+                RN TEXT NOT NULL UNIQUE
+            )`, (err) => {
+                if (err) {
+                    console.error('テーブル作成エラー:', err);
+                } else {
+                    console.log('researcher_numbers テーブルの準備完了');
+                }
+            });
+            
+            // research_projects テーブルの作成
+            db.run(`CREATE TABLE IF NOT EXISTS research_projects (
+                AN TEXT NOT NULL,
+                AT TEXT NOT NULL,
+                AName TEXT NOT NULL,
+                PI TEXT NOT NULL,
+                CI TEXT,
+                Distributed_Campus TEXT NOT NULL,
+                Distributed_Location TEXT NOT NULL,
+                Installed_Campus TEXT NOT NULL,
+                Installed_Location TEXT NOT NULL
+            )`, (err) => {
+                if (err) {
+                    console.error('テーブル作成エラー:', err);
+                } else {
+                    console.log('research_projects テーブルの準備完了');
+                }
+            });
+
+            // テストデータの挿入
+            db.get("SELECT COUNT(*) as count FROM researcher_numbers", [], (err, row) => {
+                if (err) {
+                    console.error('データ確認エラー:', err);
+                    return;
+                }
+                
+                if (row.count === 0) {
+                    // テストデータの挿入
+                    const testData = [
+                        { name: '藤原 和将', rn: 'R12345' },
+                        { name: '山田 太郎', rn: 'R67890' },
+                        { name: '鈴木 花子', rn: 'R11111' }
+                    ];
+                    
+                    testData.forEach(data => {
+                        db.run('INSERT INTO researcher_numbers (Name, RN) VALUES (?, ?)',
+                            [data.name, data.rn],
+                            function(err) {
+                                if (err) {
+                                    console.error('テストデータ挿入エラー:', err);
+                                } else {
+                                    console.log(`テストデータを挿入しました: ${data.name}`);
+                                }
+                            }
+                        );
+                    });
+                }
+            });
+        });
     }
 });
 
@@ -18,6 +105,7 @@ app.use(express.json());
 
 // 静的ファイルを提供
 app.use(express.static(path.join(__dirname, '../public')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ルートエンドポイント
 app.get('/', (req, res) => {
@@ -209,8 +297,22 @@ app.get('/fetchResearcherName', (req, res) => {
 });
 // }}}
 
+// PDFアップロードエンドポイント
+app.post('/api/upload', upload.single('pdf'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'ファイルがアップロードされていません' });
+    }
+
+    // ここでPDFの解析処理を行う（今回はダミーデータを返す）
+    const dummyData = {
+        receiver_name: '藤原 和将',
+        items: []
+    };
+
+    res.json(dummyData);
+});
+
 // サーバー起動
 app.listen(port, () => {
     console.log(`サーバーが http://localhost:${port} で起動しました`);
 });
-

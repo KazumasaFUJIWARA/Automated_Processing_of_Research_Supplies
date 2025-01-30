@@ -1,19 +1,37 @@
-# Node.jsイメージを使用
-FROM node:18
+# ビルドステージ
+FROM node:18 AS builder
 
-# アプリケーションディレクトリを作成
 WORKDIR /usr/src/app
 
-# 依存関係をインストール
+# パッケージファイルのみをコピーして依存関係をインストール
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-# アプリケーションファイルをコピー
+# ソースコードをコピー
 COPY . .
 
-# サーバーポート設定
+# 本番ステージ
+FROM node:18-slim
+
+WORKDIR /usr/src/app
+
+# ビルドステージから必要なファイルのみをコピー
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/server ./server
+COPY --from=builder /usr/src/app/public ./public
+COPY --from=builder /usr/src/app/package*.json ./
+
+# アプリケーションユーザーを作成
+RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
+
+# SQLiteデータベースのためのディレクトリを作成し、適切なパーミッションを設定
+RUN mkdir -p /usr/src/app/data && \
+    chown -R nodejs:nodejs /usr/src/app/data && \
+    chmod 755 /usr/src/app/data && \
+    chown -R nodejs:nodejs /usr/src/app
+
+USER nodejs
+
 EXPOSE 3000
 
-# アプリケーションを起動
 CMD ["node", "server/server.js"]
-
