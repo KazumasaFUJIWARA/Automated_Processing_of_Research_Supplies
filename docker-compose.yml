@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/usr/src/app/data
+      - ./uploads:/usr/src/app/uploads
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  data:
+  uploads:
