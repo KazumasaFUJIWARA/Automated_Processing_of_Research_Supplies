@@ -1,5 +1,5 @@
 # ビルドステージ
-FROM node:18 AS builder
+FROM node:18-slim AS builder
 
 WORKDIR /usr/src/app
 
@@ -12,6 +12,11 @@ COPY . .
 
 # 本番ステージ
 FROM node:18-slim
+
+# ヘルスチェック用のcurlをインストール
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app
 
@@ -29,6 +34,11 @@ RUN mkdir -p /usr/src/app/data && \
     chown -R nodejs:nodejs /usr/src/app/data && \
     chmod 755 /usr/src/app/data && \
     chown -R nodejs:nodejs /usr/src/app
+
+# アップロードディレクトリを作成
+RUN mkdir -p /usr/src/app/uploads && \
+    chown -R nodejs:nodejs /usr/src/app/uploads && \
+    chmod 755 /usr/src/app/uploads
 
 USER nodejs
 

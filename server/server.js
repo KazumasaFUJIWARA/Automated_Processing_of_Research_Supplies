@@ -37,9 +37,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
         db.serialize(() => {
             // researcher_numbers テーブルの作成
             db.run(`CREATE TABLE IF NOT EXISTS researcher_numbers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name TEXT NOT NULL,
-                RN TEXT NOT NULL UNIQUE
+                RN TEXT PRIMARY KEY,
+                Name TEXT NOT NULL
             )`, (err) => {
                 if (err) {
                     console.error('テーブル作成エラー:', err);
@@ -64,36 +63,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     console.error('テーブル作成エラー:', err);
                 } else {
                     console.log('research_projects テーブルの準備完了');
-                }
-            });
-
-            // テストデータの挿入
-            db.get("SELECT COUNT(*) as count FROM researcher_numbers", [], (err, row) => {
-                if (err) {
-                    console.error('データ確認エラー:', err);
-                    return;
-                }
-                
-                if (row.count === 0) {
-                    // テストデータの挿入
-                    const testData = [
-                        { name: '藤原 和将', rn: 'R12345' },
-                        { name: '山田 太郎', rn: 'R67890' },
-                        { name: '鈴木 花子', rn: 'R11111' }
-                    ];
-                    
-                    testData.forEach(data => {
-                        db.run('INSERT INTO researcher_numbers (Name, RN) VALUES (?, ?)',
-                            [data.name, data.rn],
-                            function(err) {
-                                if (err) {
-                                    console.error('テストデータ挿入エラー:', err);
-                                } else {
-                                    console.log(`テストデータを挿入しました: ${data.name}`);
-                                }
-                            }
-                        );
-                    });
                 }
             });
         });
@@ -293,6 +262,30 @@ app.get('/fetchResearcherName', (req, res) => {
             console.error(`研究者情報が見つかりません: RN=${researcherId}`);
             res.status(404).json({ error: 'DB未登録' });
         }
+    });
+});
+// }}}
+
+//{{{ app.get('/getResearcherInfo', (req, res) => {
+app.get('/getResearcherInfo', (req, res) => {
+    const name = req.query.name;
+
+    if (!name) {
+        return res.status(400).json({ error: '研究者名が指定されていません。' });
+    }
+
+    const query = `
+        SELECT RN, Name FROM researcher_numbers
+        WHERE Name LIKE ?
+    `;
+
+    db.all(query, [`%${name}%`], (err, rows) => {
+        if (err) {
+            console.error('データベースエラー:', err);
+            return res.status(500).json({ error: 'データベースエラーが発生しました。' });
+        }
+
+        res.json({ researchers: rows });
     });
 });
 // }}}

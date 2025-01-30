@@ -70,8 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 searchResearcherBtn.disabled = true;
                 searchResearcherBtn.textContent = '検索中...';
 
-                // 研究者氏名から研究者番号を取得
-                const url = `/getResearcherNumber?name=${encodeURIComponent(name)}`;
+                // データベースから研究者情報を取得
+                const url = `/getResearcherInfo?name=${encodeURIComponent(name)}`;
                 console.log('リクエストURL:', url);
                 
                 const response = await fetch(url);
@@ -81,11 +81,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('レスポンスデータ:', data);
 
                 if (!response.ok) {
-                    throw new Error(data.error || '研究者番号の取得に失敗しました');
+                    throw new Error(data.error || '研究者情報の取得に失敗しました');
                 }
 
-                researcherId.value = data.researcherNumber;
-                console.log('研究者番号を設定しました:', data.researcherNumber);
+                if (data.researchers && data.researchers.length > 0) {
+                    // 最初の一致する研究者の情報を使用
+                    const researcher = data.researchers[0];
+                    researcherId.value = researcher.RN;
+                    researcherName.value = researcher.Name;
+                    console.log('研究者情報を設定しました:', researcher);
+                } else {
+                    alert('該当する研究者が見つかりませんでした');
+                }
 
             } catch (error) {
                 console.error('エラーの詳細:', error);
