@@ -1,19 +1,16 @@
-# Node.jsイメージを使用
-FROM node:18
+# Python 3.11 の公式イメージを使用
+FROM python:3.11
 
-# アプリケーションディレクトリを作成
-WORKDIR /usr/src/app
+# 作業ディレクトリを設定
+WORKDIR /app
 
 # 依存関係をインストール
-COPY package*.json ./
-RUN npm install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# アプリケーションファイルをコピー
-COPY . .
+# アプリケーションのコードをコピー
+COPY app /app
 
-# サーバーポート設定
-EXPOSE 3000
-
-# アプリケーションを起動
-CMD ["node", "server/server.js"]
+# コンテナ起動時に FastAPI を起動
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
