@@ -1,5 +1,0 @@
-title="領収書" -> payment = "立替"
-title="領収書" -> 支払者=receiver_name
-title="納品書" -> payment = "業者払い"
-支払先=issuer
-研究者氏名=receiver_name

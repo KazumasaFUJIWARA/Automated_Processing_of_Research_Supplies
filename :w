@@ -1,0 +1,239 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+import sqlite3
+import os
+import logging
+import httpx
+
+app = FastAPI()
+
+# ロギングの設定
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+logger.info("Start FastAPI")
+
+# 静的ファイルを "/static" にマウント
+app.mount("/static", StaticFiles(directory="/app/public"), name="static")
+
+# ルートパス "/" で index.html を返す
+@app.get("/")
+async def read_index():
+	return FileResponse("/app/public/index.html")
+
+#{{{ # データベース接続
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, "db/aprs.db")
+
+def get_db_connection():
+	""" データベース接続を確立 """
+	if not os.path.exists(DATABASE):
+		logger.error(f"Nonexist: {DATABASE}")
+		raise FileNotFoundError(f"Not exist: {DATABASE}")
+
+	try:
+		logger.info(f"Open Database: {DATABASE}")
+		conn = sqlite3.connect(DATABASE)
+		conn.row_factory = sqlite3.Row
+		return conn
+	except sqlite3.Error as e:
+		logger.error(f"DB Error: {e}")
+		raise HTTPException(status_code=500, detail="データベースに接続できませんでした")
+#}}}
+
+#{{{ response
+#{{{ AllocationResponse
+class AllocationResponse(BaseModel):
+	PI: str
+	CI: str
+	delivered_campus: str
+	delivered_location: str
+	installed_campus: str
+	installed_location: str
+#}}}
+
+#{{{ ProjectResponse
+class ProjectResponse(BaseModel):
+	ptype: str
+	ptitle: str
+#}}}
+#}}}
+
+#{{{ @app.get("/api/researchers/{researcher_number}")
+@app.get("/api/researchers/{researcher_number}")
+async def get_researcher_name(researcher_number: str):
+	"""
+	研究者番号をもとに研究者名を取得するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		cursor.execute("SELECT rname FROM researchers WHERE rnumber = ?", (researcher_number,))
+		row = cursor.fetchone()
+		if row:
+			return {"研究者名": row["rname"]}
+		else:
+			return {"研究者名": "DB未登録"}
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+	finally:
+		conn.close()
+#}}}
+
+#{{{ @app.get("/api/researchers/by-name/{researcher_name}")
+@app.get("/api/researchers/by-name/{researcher_name}")
+async def get_researcher_number(researcher_name: str):
+	"""
+	研究者名をもとに研究番号を取得するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		cursor.execute("SELECT rnumber FROM researchers WHERE rname = ?", (researcher_name,))
+		row = cursor.fetchone()
+		if row:
+			return {"研究者番号": row["researcher_number"]}
+		else:
+			return {"研究者番号": "DB未登録"}
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+	finally:
+		conn.close()
+#}}}
+
+#{{{ @app.get("/api/researchers/kaken/by-name/{researcher_name}")
+@app.get("/api/researchers/kaken/by-name/{researcher_name}")
+async def search_researcher_number(researcher_name: str):
+	"""
+	研究者名からKAKENのAPIを利用して研究者番号を検索し、DBに登録する
+	出力は{"研究者番号": row["rnumber"] }の形式
+	"""
+
+	# 空白削除
+	rname = researcher_name.replace(" ", "")
+
+	# 環境変数 KAKEN の取得
+	kaken_api_key = os.getenv("KAKEN")
+	logger.info(f"KAKEN API KEY: {kaken_api_key}")
+	if not kaken_api_key:
+		raise HTTPException(status_code=500, detail="環境変数 KAKEN が設定されていません")
+
+	# KAKEN API のURL
+	api_url = f"https://nrid.nii.ac.jp/opensearch/?format=json&qg={rname}&appid={kaken_api_key}"
+
+	try:
+		async with httpx.AsyncClient() as client:
+			response = await client.get(api_url)
+			response.raise_for_status()
+			data = response.json()
+
+		if not data.get("researchers"):
+			return {"message": "検索結果なし", "personIds": []}
+
+		# 二重リストをフラット化
+		rnumbers = [
+			r["id:person:erad"][0] if isinstance(r["id:person:erad"], list) else r["id:person:erad"]
+			for r in data.get("researchers", [])
+		]
+
+		return {"研究者番号": rnumbers}
+
+	except httpx.HTTPError as http_err:
+		logger.error(f"APIエラー: {http_err}")
+		raise HTTPException(status_code=500, detail="API取得エラーが発生しました")
+#}}}
+
+#{{{ @app.get("/api/projects/{project_number}", response_model=ProjectResponse)
+@app.get("/api/projects/{project_number}", response_model=ProjectResponse)
+async def get_project(project_number: str):
+	logger.info(f"課題番号: {project_number} の情報を取得します")
+
+	conn = get_db_connection()
+	cursor = conn.cursor()
+	query = """
+		SELECT
+			ptype,
+			ptitle
+		FROM projects WHERE pnumber = ?
+	"""
+	cursor.execute(query, (project_number,))
+	row = cursor.fetchone()
+	conn.close()
+
+	if row:
+		return ProjectResponse(
+			ptype=row["ptype"],
+			ptitle=row["ptitle"]
+		)
+	else:
+		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+#}}}
+
+#{{{ @app.get("/api/projects/{project_number}/allocations", response_model=AllocationResponse)
+@app.get("/api/projects/{project_number}/allocations", response_model=AllocationResponse)
+async def get_allocation(project_number: str):
+	logger.info(f"課題番号: {project_number} のアロケーション情報を取得します")
+	"""
+	指定された課題番号 (project_number) に対応する allocations テーブルの情報を取得
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+	query = """
+		SELECT
+			PI,
+			CI,
+			distributed_campus AS delivered_campus,
+			distributed_location AS delivered_location,
+			installed_campus AS installed_campus,
+			installed_location AS installed_location
+		FROM allocations WHERE pnumber = ?
+	"""
+	cursor.execute(query, (project_number,))
+	row = cursor.fetchone()
+	conn.close()
+
+	if row:
+		return AllocationResponse(
+			PI=row["PI"],
+			CI=row["CI"],
+			delivered_campus=row["delivered_campus"],
+			delivered_location=row["delivered_location"],
+			installed_campus=row["installed_campus"],
+			installed_location=row["installed_location"]
+		)
+	else:
+		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+#}}}
+
+#  {{{ @app.get("/api/projects/{researcher_number}/project_numbers")
+@app.get("/api/projects/{researcher_number}/project_numbers")
+async def get_project_numbers(researcher_number: str):
+	"""
+	研究者番号 (researcher_number) をもとに対応する課題番号のリストを取得するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		cursor.execute("""
+			SELECT DISTINCT pnumber FROM allocations
+			WHERE PI = ? OR CI = ?
+		""", (researcher_number, researcher_number))
+
+		rows = cursor.fetchall()
+
+		if rows:
+			pnumber_list = [row["pnumber"] for row in rows]
+			return {"課題番号": pnumber_list}
+		else:
+			return {"課題番号": []}  # 空のリストを返す
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+	finally:
+		conn.close()
+#}}}

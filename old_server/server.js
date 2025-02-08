@@ -599,6 +599,7 @@ app.post('/api/extract-json', upload.single('pdf'), async (req, res) => {
 });
 //}}}
 
+
 // サーバー起動
 app.listen(port, () => {
 	console.log(`サーバーが http://localhost:${port} で起動しました`);
