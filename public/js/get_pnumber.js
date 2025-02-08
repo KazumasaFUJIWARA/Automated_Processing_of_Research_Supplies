@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", function() {
 			return;
 		}
 
-		fetch(`/allocations:get:pnumber?rnumber=${encodeURIComponent(researcherNumber)}`)
+		fetch(`/projects/${encodeURIComponent(researcherNumber)}/allocations`)
 			.then(response => response.json())
 			// 返り値の形式は { pnumbers: [課題番号1, 課題番号2, ...] }
 			.then(data => {
