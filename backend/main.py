@@ -23,12 +23,6 @@ app.mount("/static", StaticFiles(directory="/app/public"), name="static")
 async def read_index():
 	return FileResponse("/app/public/index.html")
 
-#{{{ API エンドポイント（静的ファイルと衝突しない）
-@app.get("/api/hello")
-async def hello():
-	return {"message": "Hello, World!"}
-#}}}
-
 #{{{ # データベース接続
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, "db/aprs.db")
@@ -65,6 +59,50 @@ class ProjectResponse(BaseModel):
 	ptype: str
 	ptitle: str
 #}}}
+#}}}
+
+#{{{ @app.get("/api/researchers/{researcher_number}")
+@app.get("/api/researchers/{researcher_number}")
+async def get_researcher_name(researcher_number: str):
+	"""
+	研究者番号をもとに研究者名を取得するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		cursor.execute("SELECT rname FROM researchers WHERE rnumber = ?", (researcher_number,))
+		row = cursor.fetchone()
+		if row:
+			return {"研究者名": row["rname"]}
+		else:
+			return {"研究者名": "DB未登録"}
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+	finally:
+		conn.close()
+#}}}
+
+#{{{ @app.get("/api/researchers/by-name/{rname}")
+@app.get("/api/researchers/by-name/{rname}")
+async def get_researcher_number(rname: str):
+	"""
+	研究者名をもとに研究番号を取得するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		cursor.execute("SELECT rnumber FROM researchers WHERE rname = ?", (rname,))
+		row = cursor.fetchone()
+		if row:
+			return {"研究者番号": row["researcher_number"]}
+		else:
+			return {"研究者番号": "DB未登録"}
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+	finally:
+		conn.close()
 #}}}
 
 #{{{ @app.get("/api/projects/{project_number}", response_model=ProjectResponse)
@@ -127,4 +165,32 @@ async def get_allocation(project_number: str):
 		)
 	else:
 		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+#}}}
+
+#  {{{ @app.get("/api/projects/{researcher_number}/project_numbers")
+@app.get("/api/projects/{researcher_number}/project_numbers")
+async def get_project_numbers(researcher_number: str):
+	"""
+	研究者番号 (researcher_number) をもとに対応する課題番号のリストを取得するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		cursor.execute("""
+			SELECT DISTINCT pnumber FROM allocations
+			WHERE PI = ? OR CI = ?
+		""", (researcher_number, researcher_number))
+
+		rows = cursor.fetchall()
+
+		if rows:
+			pnumber_list = [row["pnumber"] for row in rows]
+			return {"課題番号": pnumber_list}
+		else:
+			return {"課題番号": []}  # 空のリストを返す
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+	finally:
+		conn.close()
 #}}}
