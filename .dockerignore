@@ -1,0 +1,8 @@
+# `.dockerignore`
+*
+!app/
+!public/
+!requirements.txt
+!Dockerfile
+!docker-compose.yml
+!backend/
