@@ -9,3 +9,6 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./public:/app/public
+    environment:
+      - KAKEN=${KAKEN}
+      - GEMINI=${GEMINI}

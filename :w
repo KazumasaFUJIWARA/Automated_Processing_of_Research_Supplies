@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Path
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -6,17 +6,15 @@ import sqlite3
 import os
 import logging
 import httpx
-from xml.etree import ElementTree as ET
 
 app = FastAPI()
 
-#{{{ ロギングの設定
+# ロギングの設定
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 logger.info("Start FastAPI")
-#}}}
 
 # 静的ファイルを "/static" にマウント
 app.mount("/static", StaticFiles(directory="/app/public"), name="static")
@@ -90,8 +88,7 @@ async def get_researcher_name(researcher_number: str):
 @app.get("/api/researchers/by-name/{researcher_name}")
 async def get_researcher_number(researcher_name: str):
 	"""
-	研究者名をもとにローカルDBから研究番号を取得するエンドポイント
-	ローカルDBでは, 同姓同名は想定していない.
+	研究者名をもとに研究番号を取得するエンドポイント
 	"""
 	conn = get_db_connection()
 	cursor = conn.cursor()
@@ -100,7 +97,7 @@ async def get_researcher_number(researcher_name: str):
 		cursor.execute("SELECT rnumber FROM researchers WHERE rname = ?", (researcher_name,))
 		row = cursor.fetchone()
 		if row:
-			return {"研究者番号": row["rnumber"]}
+			return {"研究者番号": row["researcher_number"]}
 		else:
 			return {"研究者番号": "DB未登録"}
 	except sqlite3.Error as e:
@@ -115,7 +112,6 @@ async def search_researcher_number(researcher_name: str):
 	"""
 	研究者名からKAKENのAPIを利用して研究者番号を検索し、DBに登録する
 	出力は{"研究者番号": row["rnumber"] }の形式
-	同姓同名を想定し, 研究者番号はリストで返す
 	"""
 
 	# 空白削除
@@ -241,71 +237,3 @@ async def get_project_numbers(researcher_number: str):
 	finally:
 		conn.close()
 #}}}
-
-#{{{ @app.get("/api/projects/kaken/{research_number}")
-@app.get("/api/projects/kaken/{research_number}")
-async def search_project_kaken(research_number: str):
-	"""
-	KAKEN API を利用して研究者の課題情報を取得
-	"""
-
-	# 環境変数 KAKEN を取得
-	kaken_api_key = os.getenv("KAKEN")
-	if not kaken_api_key:
-		raise HTTPException(status_code=500, detail="環境変数 KAKEN が設定されていません")
-
-	# KAKEN API のURL
-	kaken_api_url = f"https://kaken.nii.ac.jp/opensearch/?format=xml&qm={research_number}&c1=granted&appid={kaken_api_key}"
-
-	try:
-		async with httpx.AsyncClient() as client:
-			response = await client.get(kaken_api_url)
-			response.raise_for_status()
-			xml_data = response.text
-
-		if not xml_data.strip():
-			raise HTTPException(status_code=500, detail="KAKEN API からのレスポンスが空です")
-
-		# XML をパース
-		root = ET.fromstring(xml_data)
-
-		# `grantAward` タグを取得
-		grant_awards = root.findall(".//grantAward")
-		if not grant_awards:
-			raise HTTPException(status_code=404, detail="該当する課題番号が見つかりませんでした")
-
-		projects = []
-
-		for grant in grant_awards:
-			award_number = grant.get("awardNumber", "不明")
-
-			summary = grant.find("summary")
-			title = summary.findtext("title") if summary is not None else "タイトルなし"
-			category = summary.findtext("category") if summary is not None else "カテゴリーなし"
-
-			member = summary.find("member") if summary is not None else None
-			researcher_id = member.findtext("enriched/researcherNumber") if member is not None else "不明"
-			researcher_name = member.findtext("personalName/fullName") if member is not None else "不明"
-
-			projects.append({
-				"awardNumber": award_number,
-				"title": title,
-				"category": category,
-				"researcherId": researcher_id,
-				"researcherName": researcher_name
-			})
-
-		if not projects:
-			raise HTTPException(status_code=404, detail="課題番号が見つかりませんでした")
-
-		return {"projects": projects}
-
-	except httpx.HTTPError as http_err:
-		raise HTTPException(status_code=500, detail=f"KAKEN API エラー: {str(http_err)}")
-	except ET.ParseError:
-		raise HTTPException(status_code=500, detail="KAKEN API の XML レスポンスを解析できませんでした")
-	except Exception as err:
-		raise HTTPException(status_code=500, detail=f"サーバーエラー: {str(err)}")
-#}}}
-
-# ✅

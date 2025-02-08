@@ -1,0 +1,31 @@
+:root {
+    --background-color: #121212;
+    --text-color: #e0e0e0;
+    --header-bg-color: #1e1e1e;
+    --input-bg-color: #1e1e1e;
+}
+
+body {
+    background-color: var(--background-color) !important;
+    color: var(--text-color) !important;
+}
+
+.swagger-ui .topbar {
+    background-color: var(--header-bg-color) !important;
+}
+
+.swagger-ui .info, 
+.swagger-ui .opblock-summary {
+    background-color: var(--header-bg-color) !important;
+    color: var(--text-color) !important;
+}
+
+.swagger-ui .opblock {
+    background-color: var(--background-color) !important;
+    border-color: #333 !important;
+}
+
+.swagger-ui input {
+    background-color: var(--input-bg-color) !important;
+    color: var(--text-color) !important;
+}
