@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Path
+# {{{ import
+from fastapi import FastAPI, HTTPException, Path, File, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -7,6 +8,10 @@ import os
 import logging
 import httpx
 from xml.etree import ElementTree as ET
+import base64
+import json
+import re
+# }}}
 
 app = FastAPI()
 
@@ -46,8 +51,8 @@ def get_db_connection():
 		raise HTTPException(status_code=500, detail="データベースに接続できませんでした")
 #}}}
 
-#{{{ response
-#{{{ AllocationResponse
+#{{{ schemas
+#{{{ class AllocationResponse(BaseModel):
 class AllocationResponse(BaseModel):
 	PI: str
 	CI: str
@@ -57,11 +62,72 @@ class AllocationResponse(BaseModel):
 	installed_location: str
 #}}}
 
-#{{{ ProjectResponse
+#{{{ class ProjectResponse(BaseModel):
 class ProjectResponse(BaseModel):
 	ptype: str
 	ptitle: str
 #}}}
+
+#{{{ class ProjectCreateRequest(BaseModel):
+class ProjectCreateRequest(BaseModel):
+	projectNumber: str
+	projectType: str
+	projectTitle: str
+#}}}
+
+#{{{ class ProjectUpdateRequest(BaseModel):
+class ProjectUpdateRequest(BaseModel):
+	projectType: str
+	projectTitle: str
+#}}}
+
+#{{{ class ResearcherCreateRequest(BaseModel)
+class ResearcherCreateRequest(BaseModel):
+	researcherNumber: str
+	researcherName: str
+#}}}
+
+#{{{ class ResearcherUpdateRequest(BaseModel)
+class ResearcherUpdateRequest(BaseModel):
+	researcherName: str
+#}}}
+#}}}
+
+#{{{ @app.post("/api/researchers/")
+@app.post("/api/researchers/")
+async def create_researcher(request: ResearcherCreateRequest):
+	"""
+	研究者を新規作成するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		# 既存データの確認
+		cursor.execute("SELECT rnumber FROM researchers WHERE rnumber = ?", (request.researcherNumber,))
+		row = cursor.fetchone()
+
+		if row:
+			logger.info(f"既存データがあるため挿入をスキップ: rnumber={request.researcherNumber}")
+			return {"message": "既存データがあるため、新規追加をスキップしました。"}
+
+		# 新規挿入
+		query = """
+			INSERT INTO researchers (rnumber, rname)
+			VALUES (?, ?)
+		"""
+		cursor.execute(query, (request.researcherNumber, request.researcherName))
+		conn.commit()
+
+		logger.info(f"researchers テーブルに新規挿入しました: rnumber={request.researcherNumber}")
+		return {"message": "研究者情報が追加されました。"}
+
+	except sqlite3.Error as e:
+		logger.error(f"データベースエラー: {e}")
+		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+
+	finally:
+		conn.close()
 #}}}
 
 #{{{ @app.get("/api/researchers/{researcher_number}")
@@ -82,6 +148,43 @@ async def get_researcher_name(researcher_number: str):
 			return {"研究者名": "DB未登録"}
 	except sqlite3.Error as e:
 		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+	finally:
+		conn.close()
+#}}}
+
+#{{{ @app.put("/api/researchers/{researcher_number}/")
+@app.put("/api/researchers/{researcher_number}/")
+async def update_researcher(researcher_number: str, request: ResearcherUpdateRequest):
+	"""
+	指定した研究者の情報を更新するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		# 既存データの確認
+		cursor.execute("SELECT rnumber FROM researchers WHERE rnumber = ?", (researcher_number,))
+		row = cursor.fetchone()
+
+		if not row:
+			raise HTTPException(status_code=404, detail="指定された研究者番号のデータは存在しません")
+
+		# データ更新
+		query = """
+			UPDATE researchers
+			SET rname = ?
+			WHERE rnumber = ?
+		"""
+		cursor.execute(query, (request.researcherName, researcher_number))
+		conn.commit()
+
+		logger.info(f"researchers テーブルを更新しました: rnumber={researcher_number}")
+		return {"message": "研究者情報が更新されました。"}
+
+	except sqlite3.Error as e:
+		logger.error(f"データベースエラー: {e}")
+		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+
 	finally:
 		conn.close()
 #}}}
@@ -152,6 +255,65 @@ async def search_researcher_number(researcher_name: str):
 		raise HTTPException(status_code=500, detail="API取得エラーが発生しました")
 #}}}
 
+#{{{ @app.post("/api/projects/")
+@app.post("/api/projects/")
+async def create_project(request: ProjectCreateRequest):
+	"""
+	新しいプロジェクトを作成するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		# 既存データの確認
+		cursor.execute("SELECT pnumber FROM projects WHERE pnumber = ?", (request.projectNumber,))
+		row = cursor.fetchone()
+
+		if row:
+			logger.info(f"既存データがあるため挿入をスキップ: pnumber={request.projectNumber}")
+			return {"message": "既存データがあるため、新規追加をスキップしました。"}
+
+		# 新規挿入
+		query = """
+			INSERT INTO projects (pnumber, ptype, ptitle)
+			VALUES (?, ?, ?)
+		"""
+		cursor.execute(query, (request.projectNumber, request.projectType, request.projectTitle))
+		conn.commit()
+
+		logger.info(f"projects テーブルに新規挿入しました: pnumber={request.projectNumber}")
+		return {"message": "課題情報が追加されました。"}
+
+	except sqlite3.Error as e:
+		logger.error(f"データベースエラー: {e}")
+		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+
+	finally:
+		conn.close()
+
+@app.get("/api/projects/{pnumber}/")
+async def get_project(pnumber: str):
+	"""
+	指定したプロジェクトを取得するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		cursor.execute("SELECT pnumber, ptype, ptitle FROM projects WHERE pnumber = ?", (pnumber,))
+		row = cursor.fetchone()
+		if row:
+			return {"projectNumber": row["pnumber"], "projectType": row["ptype"], "projectTitle": row["ptitle"]}
+		else:
+			raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+
+	finally:
+		conn.close()
+#}}}
+
 #{{{ @app.get("/api/projects/{project_number}", response_model=ProjectResponse)
 @app.get("/api/projects/{project_number}", response_model=ProjectResponse)
 async def get_project(project_number: str):
@@ -176,6 +338,43 @@ async def get_project(project_number: str):
 		)
 	else:
 		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+#}}}
+
+#{{{ @app.put("/api/projects/{project_number}/")
+@app.put("/api/projects/{project_number}/")
+async def update_project(project_number: str, request: ProjectUpdateRequest):
+	"""
+	指定したプロジェクトを更新するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		# 既存データの確認
+		cursor.execute("SELECT pnumber FROM projects WHERE pnumber = ?", (project_number,))
+		row = cursor.fetchone()
+
+		if not row:
+			raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+
+		# データ更新
+		query = """
+			UPDATE projects
+			SET ptype = ?, ptitle = ?
+			WHERE pnumber = ?
+		"""
+		cursor.execute(query, (request.projectType, request.projectTitle, project_number))
+		conn.commit()
+
+		logger.info(f"✅ projects テーブルを更新しました: 課題番号={project_number}")
+		return {"✅": "課題情報が更新されました。"}
+
+	except sqlite3.Error as e:
+		logger.error(f"データベースエラー: {e}")
+		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+
+	finally:
+		conn.close()
 #}}}
 
 #{{{ @app.get("/api/projects/{project_number}/allocations", response_model=AllocationResponse)
@@ -306,6 +505,71 @@ async def search_project_kaken(research_number: str):
 		raise HTTPException(status_code=500, detail="KAKEN API の XML レスポンスを解析できませんでした")
 	except Exception as err:
 		raise HTTPException(status_code=500, detail=f"サーバーエラー: {str(err)}")
+#}}}
+
+#{{{ @app.post("/api/pdf2json/")
+@app.post("/api/pdf2json/")
+async def extract_json_from_pdf(pdf: UploadFile = File(...)):
+	"""
+	PDF をアップロードして JSON データを抽出するエンドポイント
+	"""
+	try:
+		GEMINI_API_KEY = os.getenv("GEMINI")
+		if not GEMINI_API_KEY:
+			raise HTTPException(status_code=500, detail="Missing GEMINI API key.")
+
+		# PDFデータを Base64 に変換
+		pdf_data = await pdf.read()
+		pdf_base64 = base64.b64encode(pdf_data).decode("utf-8")
+
+		# Gemini API にリクエスト
+		payload = {
+			"contents": [
+				{
+					"parts": [
+						{
+							"text": "領収書または納品書の情報を解析し、購入項目ごとに以下の形式でJSONに構造化してください。ただし、以下の処理を施してください。\n"
+									"+ 金額の部分はカンマがあれば除いてください\n"
+									"+ 金額が0の項目は無視してください\n\n"
+									"{ \"title\": \"領収書タイトル\", \"issuer\": \"発行者情報\", \"receiver_group\": \"受領者所属\", \"receiver_name\": \"受領者氏名(敬称、空白は除く)\", \"total_amount\": \"合計金額\", \"payment_date\": \"支払日\", \"items\": [ { \"product_name\": \"製品名(型番は抜く)\", \"provider\": \"メーカー\", \"model\": \"型番\", \"unite_price\": \"単価\", \"total_price\": \"金額\", \"number\": \"個数\", \"delivery_date\": \"発送日\" } ] }"
+						},
+						{
+							"inlineData": {
+								"mimeType": "application/pdf",
+								"data": pdf_base64
+							}
+						}
+					]
+				}
+			]
+		}
+
+		async with httpx.AsyncClient() as client:
+			response = await client.post(
+				f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-001:generateContent?key={GEMINI_API_KEY}",
+				headers={"Content-Type": "application/json"},
+				json=payload
+			)
+
+		json_response = response.json()
+
+		if response.status_code != 200:
+			logger.error(f"Gemini API error: {json_response}")
+			raise HTTPException(status_code=500, detail="Failed to process PDF.")
+
+		# JSON部分の抽出
+		extracted_text = json_response.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
+		extracted_json_match = re.search(r"```json\n([\s\S]+?)\n```", extracted_text)
+
+		extracted_json = json.loads(extracted_json_match.group(1)) if extracted_json_match else {}
+
+		return extracted_json
+
+	except HTTPException as http_err:
+		raise http_err
+	except Exception as e:
+		logger.error(f"Error in PDF JSON extraction: {str(e)}")
+		raise HTTPException(status_code=500, detail="Internal server error while extracting JSON from PDF")
 #}}}
 
 # ✅
