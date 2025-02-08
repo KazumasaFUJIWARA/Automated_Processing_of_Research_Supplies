@@ -290,28 +290,6 @@ async def create_project(request: ProjectCreateRequest):
 
 	finally:
 		conn.close()
-
-@app.get("/api/projects/{pnumber}/")
-async def get_project(pnumber: str):
-	"""
-	指定したプロジェクトを取得するエンドポイント
-	"""
-	conn = get_db_connection()
-	cursor = conn.cursor()
-
-	try:
-		cursor.execute("SELECT pnumber, ptype, ptitle FROM projects WHERE pnumber = ?", (pnumber,))
-		row = cursor.fetchone()
-		if row:
-			return {"projectNumber": row["pnumber"], "projectType": row["ptype"], "projectTitle": row["ptitle"]}
-		else:
-			raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
-
-	except sqlite3.Error as e:
-		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
-
-	finally:
-		conn.close()
 #}}}
 
 #{{{ @app.get("/api/projects/{project_number}", response_model=ProjectResponse)
