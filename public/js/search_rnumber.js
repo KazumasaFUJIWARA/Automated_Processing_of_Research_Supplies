@@ -70,10 +70,7 @@ document.getElementById("研究者番号KAKEN検索").addEventListener("click", 
 			}
 			// 候補が複数ある場合はalert
 			else {
-				alert("
-					🛑 候補が複数あるため, 停止します.
-					手動で情報を/api/researchers/にPOSTしてください.
-					");
+				alert("🛑 候補が複数あるため, 停止します.手動で情報を/api/researchers/にPOSTしてください.");
 			}
 		} else {
 			alert("🔍❌ No results found.");

@@ -360,7 +360,8 @@ async def update_project(project_number: str, request: ProjectUpdateRequest):
 async def get_allocation(project_number: str):
 	logger.info(f"課題番号: {project_number} のアロケーション情報を取得します")
 	"""
-	指定された課題番号 (project_number) に対応する allocations テーブルの情報を取得
+	指定された課題番号 (project_number) に対応する
+	allocations テーブルの情報を取得
 	"""
 	conn = get_db_connection()
 	cursor = conn.cursor()
@@ -382,10 +383,11 @@ async def get_allocation(project_number: str):
 		return AllocationResponse(
 			PI=row["PI"],
 			CI=row["CI"],
-			delivered_campus=row["delivered_campus"],
-			delivered_location=row["delivered_location"],
-			installed_campus=row["installed_campus"],
-			installed_location=row["installed_location"]
+			# Null の場合は空文字列を返す
+			delivered_campus=row["delivered_campus"] or "",
+			delivered_location=row["delivered_location"] or "",
+			installed_campus=row["installed_campus"] or "",
+			installed_location=row["installed_location"] or ""
 		)
 	else:
 		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
