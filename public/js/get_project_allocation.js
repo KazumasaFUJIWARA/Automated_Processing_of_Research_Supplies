@@ -1,7 +1,13 @@
 document.getElementById("asign-info-from-db").addEventListener("click", async function () {
 	let pnumber = document.getElementById("研究課題番号").value;
+	const fetchButton = document.getElementById("asign-info-from-db");
+	fetchButton.disabled = true;
+	fetchButton.textContent = "⌛ 検索中...";
+
 	if (!pnumber) {
-		alert("apa;課題番号を入力してください");
+		alert("🚨 課題番号を入力してください");
+		fetchButton.disabled = false;
+		fetchButton.textContent = "課題情報DB検索";
 		return;
 	}
 
@@ -63,6 +69,9 @@ document.getElementById("asign-info-from-db").addEventListener("click", async fu
 	} catch (error) {
 		console.error("🚨", error);
 		alert("🚨 課題情報の検索中エラー");
+	} finally {
+		fetchButton.disabled = false;
+		fetchButton.textContent = "課題情報DB検索";
 	}
 });
 

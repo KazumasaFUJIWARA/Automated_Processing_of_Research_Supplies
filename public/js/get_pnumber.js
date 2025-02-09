@@ -6,12 +6,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
 		// ボタンを無効化し、テキストを変更
 		fetchButton.disabled = true;
-		fetchButton.textContent = '処理中...';
-		loadingIndicator.style.display = 'inline-block'; // ローディング表示
+		fetchButton.textContent = '⌛処理中';
 
 		const researcherNumber = document.getElementById("研究者番号").value.trim();
 		if (!researcherNumber) {
 			alert("研究者番号を入力してください。");
+			fetchButton.disabled = false;
+			fetchButton.textContent = '課題番号DB検索';
 			return;
 		}
 
@@ -54,7 +55,6 @@ document.addEventListener("DOMContentLoaded", function() {
 		// ボタンを有効化し、テキストを戻す
 		fetchButton.disabled = false;
 		fetchButton.textContent = '課題番号DB検索';
-		loadingIndicator.style.display = 'none'; // ローディング非表示
 	});
 });
 

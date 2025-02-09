@@ -3,16 +3,16 @@ document.getElementById("研究者番号KAKEN検索").addEventListener("click", 
 	const researcherOptions = document.getElementById("reseacrcher-options");
 
 	const fetchButton = document.getElementById('研究者番号KAKEN検索');
-	const loadingIndicator = document.getElementById('loading-KAKEN-rnumber');
 
 	// ボタンを無効化し、テキストを変更
 	fetchButton.disabled = true;
-	fetchButton.textContent = '処理中...';
-	loadingIndicator.style.display = 'inline-block'; // ローディング表示
+	fetchButton.textContent = '⌛ 処理中...';
 
 	const name = researcherNameInput.value.trim();
 	if (!name) {
-		alert("研究者氏名を入力してください。");
+		alert("🚨 研究者氏名を入力してください。");
+		fetchButton.disabled = false;
+		fetchButton.textContent = '研究者番号KAKEN検索';
 		return;
 	}
 
@@ -82,6 +82,5 @@ document.getElementById("研究者番号KAKEN検索").addEventListener("click", 
 		// ボタンを有効化し、テキストを戻す
 		fetchButton.disabled = false;
 		fetchButton.textContent = '研究者番号KAKEN検索';
-		loadingIndicator.style.display = 'none'; // ローディング非表示
 	}
 });
