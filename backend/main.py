@@ -217,7 +217,7 @@ async def get_researcher_number(researcher_name: str):
 async def search_researcher_number(researcher_name: str):
 	"""
 	研究者名からKAKENのAPIを利用して研究者番号を検索し、DBに登録する
-	出力は{"研究者番号": row["rnumber"] }の形式
+	出力は{"researcher_number": row["rnumber"] }の形式
 	同姓同名を想定し, 研究者番号はリストで返す
 	"""
 
@@ -248,7 +248,7 @@ async def search_researcher_number(researcher_name: str):
 			for r in data.get("researchers", [])
 		]
 
-		return {"研究者番号": rnumbers}
+		return {"researcher_number": rnumbers}
 
 	except httpx.HTTPError as http_err:
 		logger.error(f"APIエラー: {http_err}")

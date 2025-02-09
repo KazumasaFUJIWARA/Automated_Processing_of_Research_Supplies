@@ -53,7 +53,7 @@
 						list="reseacrcher-options"
 						placeholder="研究者番号"
 						data-tooltip="
-							研究者名からローカルかCiNiiのDBから候補を取得します.
+							研究者名からローカルかKAKENのDBから候補を取得します.
 							候補が表示されない場合は, 手入力してください.
 						"
 					>
@@ -74,11 +74,19 @@
 						placeholder="研究者氏名"
 					>
 					<button
-						id="研究者番号CiNii検索"
-						data-tooltip="研究者名からCiNiiにアクセスして研究者番号を取得します.検索結果は, ローカルDBに保存されます."
+						id="研究者番号KAKEN検索"
+						data-tooltip="研究者名からKAKENにアクセスして研究者番号を取得します.検索結果は, ローカルDBに保存されます."
 					>
-						研究者番号 CiNii検索
+						研究者番号 KAKEN検索
 					</button>
+					<span
+						id="loading-KAKEN-rnumber"
+						style="display: none; margin-left: 10px;"
+					>
+						⏳ 処理中...
+					</span>
+
+
 				</div>
 
 				<div class="project-search">
