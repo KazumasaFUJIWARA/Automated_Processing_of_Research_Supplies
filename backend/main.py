@@ -410,9 +410,9 @@ async def get_project_numbers(researcher_number: str):
 
 		if rows:
 			pnumber_list = [row["pnumber"] for row in rows]
-			return {"課題番号": pnumber_list}
+			return {"project_number": pnumber_list}
 		else:
-			return {"課題番号": []}  # 空のリストを返す
+			return {"project_number": []}  # 空のリストを返す
 	except sqlite3.Error as e:
 		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
 	finally:
