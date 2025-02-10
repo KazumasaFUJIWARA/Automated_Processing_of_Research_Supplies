@@ -8,7 +8,8 @@ document.getElementById("研究者番号KAKEN検索").addEventListener("click", 
 	fetchButton.disabled = true;
 	fetchButton.textContent = '⌛ 処理中...';
 
-	const name = researcherNameInput.value.trim();
+	const name = researcherNameInput.value.replace(/\s+/g, "");
+
 	if (!name) {
 		alert("🚨 研究者氏名を入力してください。");
 		fetchButton.disabled = false;
@@ -17,10 +18,10 @@ document.getElementById("研究者番号KAKEN検索").addEventListener("click", 
 	}
 
 	try {
-		console.log("検索リクエスト📡: ", name);
+		// console.log("検索リクエスト📡: ", name);
 		const response = await fetch(`/api/researchers/kaken/by-name/${encodeURIComponent(name)}`);
 		const data = await response.json();
-		console.log("🌐レスポンス: ", data);
+		// console.log("🌐レスポンス: ", data);
 
 		// 候補のリストをクリア
 		researcherOptions.innerHTML = "";
