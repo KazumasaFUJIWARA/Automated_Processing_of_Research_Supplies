@@ -39,10 +39,10 @@ document.getElementById("asign-info-from-db").addEventListener("click", async fu
 		}
 
 		// console.log("✅ api/projects/allocations", allocationData);
-		document.getElementById("納品キャンパス").value = allocationData.納品キャンパス || "DB未登録";
-		document.getElementById("納品先").value = allocationData.納品先 || "DB未登録";
-		document.getElementById("設置キャンパス").value = allocationData.設置キャンパス || "DB未登録";
-		document.getElementById("設置先").value = allocationData.設置先 || "DB未登録";
+		document.getElementById("納品キャンパス").value = allocationData.deliveredCampus || "DB未登録";
+		document.getElementById("納品先").value = allocationData.deliveredLocation || "DB未登録";
+		document.getElementById("設置キャンパス").value = allocationData.installedCampus || "DB未登録";
+		document.getElementById("設置先").value = allocationData.installedLocation || "DB未登録";
 		// 代表者 (PI) の情報取得
 		if (allocationData.PI) {
 			let piResponse = await fetch(`/api/researchers/${encodeURIComponent(allocationData.PI)}`);

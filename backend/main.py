@@ -1,3 +1,5 @@
+#/api/projects/{project_number}/{researcher_number}/allocations
+
 # {{{ import
 from fastapi import FastAPI, HTTPException, Path, File, UploadFile
 from fastapi.responses import FileResponse
@@ -56,10 +58,31 @@ def get_db_connection():
 class AllocationResponse(BaseModel):
 	PI: str
 	CI: str
-	delivered_campus: str
-	delivered_location: str
-	installed_campus: str
-	installed_location: str
+	deliveredCampus: str
+	deliveredLocation: str
+	installedCampus: str
+	installedLocation: str
+#}}}
+
+#{{{ class AllocationCreateRequest(BaseModel):
+class AllocationCreateRequest(BaseModel):
+	projectNumber: str
+	PI: str
+	CI: str
+	deliveredCampus: str
+	deliveredLocation: str
+	installedCampus: str
+	installedLocation: str
+#}}}
+
+#{{{ class AllocationUpdateRequest(BaseModel):
+class AllocationUpdateRequest(BaseModel):
+	PI: str
+	CI: str
+	deliveredCampus: str
+	deliveredLocation: str
+	installedCampus: str
+	installedLocation: str
 #}}}
 
 #{{{ class ProjectResponse(BaseModel):
@@ -292,6 +315,46 @@ async def create_project(request: ProjectCreateRequest):
 		conn.close()
 #}}}
 
+#{{{ @app.post("/api/projects/allocations/")
+@app.post("/api/projects/allocations/")
+async def create_project(request: AllocationCreateRequest):
+	"""
+	新しいプロジェクトを作成するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		# 既存データの確認
+		cursor.execute("SELECT pnumber FROM allocations WHERE pnumber = ?", (request.projectNumber,))
+		row = cursor.fetchone()
+
+		if row:
+			logger.info(f"ℹ️ 登録済み課題番号: pnumber={request.projectNumber}")
+			return {"ℹ️ ": "既存データがあるため、新規追加をスキップしました。"}
+
+		# 新規挿入
+		query = """
+			INSERT INTO allocations (pnumber, PI, CI, distributed_campus, distributed_location, installed_campus, installed_location)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		"""
+		cursor.execute(query, (
+			request.projectNumber,
+			request.PI,
+			request.CI,
+			request.deliveredCampus,
+			request.deliveredLocation,
+			request.installedCampus,
+			request.installedLocation
+		))
+		conn.commit()
+
+		logger.info(f"✅ 課題情報を追加 : pnumber={request.projectNumber}")
+		return {"message": "アロケーション情報が追加されました。"}
+	finally:
+		conn.close()
+#}}}
+
 #{{{ @app.get("/api/projects/{project_number}", response_model=ProjectResponse)
 @app.get("/api/projects/{project_number}", response_model=ProjectResponse)
 async def get_project(project_number: str):
@@ -355,16 +418,18 @@ async def update_project(project_number: str, request: ProjectUpdateRequest):
 		conn.close()
 #}}}
 
-#{{{ @app.get("/api/projects/{project_number}/allocations", response_model=AllocationResponse)
-@app.get("/api/projects/{project_number}/allocations", response_model=AllocationResponse)
-async def get_allocation(project_number: str):
-	logger.info(f"課題番号: {project_number} のアロケーション情報を取得します")
+#{{{ @app.get("/api/projects/{project_number}/{researcher_number}/allocations", response_model=AllocationResponse)
+@app.get("/api/projects/{project_number}/{researcher_number}/allocations", response_model=AllocationResponse)
+async def get_allocation(project_number: str, researcher_number: str):
 	"""
-	指定された課題番号 (project_number) に対応する
-	allocations テーブルの情報を取得
+	指定された課題番号 (project_number) と研究者番号 (researcher_number) に対応する
+	研究課題の配置情報を取得
 	"""
+
 	conn = get_db_connection()
 	cursor = conn.cursor()
+	# pnumber = project_number かつ
+	# PI = researcher_number または CI = researcher_number のデータを取得
 	query = """
 		SELECT
 			PI,
@@ -373,9 +438,9 @@ async def get_allocation(project_number: str):
 			distributed_location AS delivered_location,
 			installed_campus AS installed_campus,
 			installed_location AS installed_location
-		FROM allocations WHERE pnumber = ?
+		FROM allocations WHERE pnumber = ? AND (PI = ? OR CI = ?)
 	"""
-	cursor.execute(query, (project_number,))
+	cursor.execute(query, (project_number, researcher_number, researcher_number))
 	row = cursor.fetchone()
 	conn.close()
 
@@ -384,13 +449,62 @@ async def get_allocation(project_number: str):
 			PI=row["PI"],
 			CI=row["CI"],
 			# Null の場合は空文字列を返す
-			delivered_campus=row["delivered_campus"] or "",
-			delivered_location=row["delivered_location"] or "",
-			installed_campus=row["installed_campus"] or "",
-			installed_location=row["installed_location"] or ""
+			deliveredCampus=row["delivered_campus"] or "",
+			deliveredLocation=row["delivered_location"] or "",
+			installedCampus=row["installed_campus"] or "",
+			installedLocation=row["installed_location"] or ""
 		)
 	else:
 		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+#}}}
+
+#{{{ @app.put("/api/projects/{project_number}/allocations/")
+@app.put("/api/projects/{project_number}/allocations/")
+async def update_allocation(project_number: str, request: AllocationUpdateRequest):
+	"""
+	指定した課題の配置情報を更新するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		# 既存データの確認
+		# キーは pnumber, PI, CI の組み合わせ
+		cursor.execute("SELECT pnumber FROM allocations WHERE pnumber = ? AND PI = ? AND CI = ?", (project_number, request.PI, request.CI))
+		row = cursor.fetchone()
+
+		if not row:
+			raise HTTPException(status_code=404, detail="❎ 指定された課題番号のデータは存在しません")
+
+		# データ更新
+		query = """
+			UPDATE allocations
+			SET distributed_campus = ?, distributed_location = ?, installed_campus = ?, installed_location = ?
+			WHERE pnumber = ? AND PI = ? AND CI = ?
+		"""
+		cursor.execute(query, (
+			request.deliveredCampus,
+			request.deliveredLocation,
+			request.installedCampus,
+			request.installedLocation,
+			project_number,
+			request.PI,
+			request.CI
+		))
+		conn.commit()
+
+		logger.info(f"✅ allocations テーブルを更新しました:")
+		logger.info(f"課題番号: {project_number}")
+		logger.info(f"PI: {request.PI}")
+		logger.info(f"CI: {request.CI}")
+		return {"✅": "課題情報が更新されました。"}
+
+	except sqlite3.Error as e:
+		logger.error(f"❎ データベースエラー: {e}")
+		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+
+	finally:
+		conn.close()
 #}}}
 
 #  {{{ @app.get("/api/projects/{researcher_number}/project_numbers")
@@ -551,5 +665,3 @@ async def extract_json_from_pdf(pdf: UploadFile = File(...)):
 		logger.error(f"Error in PDF JSON extraction: {str(e)}")
 		raise HTTPException(status_code=500, detail="Internal server error while extracting JSON from PDF")
 #}}}
-
-# ✅
