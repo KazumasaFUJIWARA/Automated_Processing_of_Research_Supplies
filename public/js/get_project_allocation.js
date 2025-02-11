@@ -4,12 +4,7 @@ document.getElementById("asign-info-from-db").addEventListener("click", async fu
 	fetchButton.disabled = true;
 	fetchButton.textContent = "⌛ 検索中...";
 
-	if (!pnumber) {
-		alert("🚨 課題番号を入力してください");
-		fetchButton.disabled = false;
-		fetchButton.textContent = "課題情報DB検索";
-		return;
-	}
+//export async function nominateProjectNumber(researcherNumber) {
 
 	try {
 		// projects:get で課題情報取得

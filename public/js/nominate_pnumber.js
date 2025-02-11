@@ -1,0 +1,51 @@
+/*
+researcher_numberを受け取り、
+該当するプロジェクト番号を取得し、
+datalistに追加する
+*/
+
+export async function nominateProjectNumber(researcherNumber) {
+	if (!researcherNumber) {
+		throw new Error("❎ No researcher number provided.");
+		return;
+	}
+
+	try {
+		fetch(`/api/projects/${encodeURIComponent(researcherNumber)}/project_numbers`)
+			.then(response => response.json())
+			// 返り値の形式は { project_number: [課題番号1, 課題番号2, ...] }
+			.then(data => {
+				// data example: project_number: ['24H00024', '24K16957']
+				//datalist id="projct-options"のdatalistを指定
+				const projectOptions = document.getElementById("project-options");
+				// Clear existing options
+				projectOptions.innerHTML = "";
+
+				console.log(data.project_number);
+
+				// data.project_number=[pnum1, pnum2, ...]が存在し、その要素数が1以上の場合
+				if (data.project_number && data.project_number.length > 0) {
+					// data.project_numberの各要素に対して以下を実行
+					data.project_number.forEach(project_number => {
+						// option要素を作成
+						const option = document.createElement("option");
+						// option要素のvalue属性にproject_numberを設定
+						option.value = project_number;
+						// option要素のtextContentにproject_numberを設定
+						option.textContent = project_number;
+						// option要素をdatalistに追加
+						projectOptions.appendChild(option);
+					});
+
+					alert(`${data.project_number.length}件該当しました.プロジェクトを選択してください. プロジェクトがない場合は手入力してください.`);
+					console.log(`✅ ${data.project_number.length} projects added to the datalist.`);
+				} else {
+					alert("該当するプロジェクトが見つかりませんでした.");
+					console.log("ℹ️ No projects found.");
+				}
+			})
+	} catch (error) {
+		alert("🙇 プロジェクト番号の取得中にエラーが発生しました.")
+		console.error("❎ Error fetching project numbers:", error);
+	}
+}

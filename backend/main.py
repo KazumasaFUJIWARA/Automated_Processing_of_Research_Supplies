@@ -126,14 +126,6 @@ async def create_researcher(request: ResearcherCreateRequest):
 	cursor = conn.cursor()
 
 	try:
-		# 既存データの確認
-		cursor.execute("SELECT rnumber FROM researchers WHERE rnumber = ?", (request.researcherNumber,))
-		row = cursor.fetchone()
-
-		if row:
-			logger.info(f"既存データがあるため挿入をスキップ: rnumber={request.researcherNumber}")
-			return {"message": "既存データがあるため、新規追加をスキップしました。"}
-
 		# 新規挿入
 		query = """
 			INSERT INTO researchers (rnumber, rname)
@@ -141,13 +133,14 @@ async def create_researcher(request: ResearcherCreateRequest):
 		"""
 		cursor.execute(query, (request.researcherNumber, request.researcherName))
 		conn.commit()
-
-		logger.info(f"researchers テーブルに新規挿入しました: rnumber={request.researcherNumber}")
 		return {"message": "研究者情報が追加されました。"}
+	
+	except sqlite3.IntegrityError as e:
+		raise HTTPException(status_code=409, detail="Conflict: 研究者番号が既に登録されています")
 
 	except sqlite3.Error as e:
-		logger.error(f"データベースエラー: {e}")
 		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+		logger.error(f"DB Error: {e}")
 
 	finally:
 		conn.close()

@@ -1,26 +1,12 @@
-document.addEventListener("DOMContentLoaded", function () {
-	const kakenButton = document.getElementById("KAKEN");
-	//Buttonをdisableにする
-	kakenButton.disabled = true;
-	kakenButton.textContent = '⌛ 処理中...';
+// Description: 研究者番号を入力し、課題番号を取得するためのスクリプト
+//export async function nominateProjectNumber(researcherNumber) {
+import { nominateProjectNumber } from './nominate_pnumber.js';
 
-	if (kakenButton) {
-		kakenButton.addEventListener("click", async function () {
-			await handleKakenSearch();
-		});
-	} else {
-		console.error("❎ KAKENボタンが見つかりません。");
-	}
-
-	kakenButton.disabled = false;
-	kakenButton.textContent = '課題番号KAKEN検索';
-});
-
-async function handleKakenSearch() {
-	const researcherNumber = document.getElementById("研究者番号").value.trim();
+//{{{ async function handleKakenSearch(researcherNumber) {
+//KAKEN APIを呼び出して、課題番号を取得し, Local DBに保存する
+async function handleKakenSearch(researcherNumber) {
 	if (!researcherNumber) {
-		alert("🚨 研究者番号を入力してください。");
-		return;
+		throw new Error("❎ No researcher number provided.");
 	}
 
 	try {
@@ -53,7 +39,7 @@ async function handleKakenSearch() {
 			const postResearcherResult = await fetch("/api/researchers/", postResearcherOptions);
 
 			if (postResearcherResult.ok) {
-				console.log(`✅ 研究者番号 ${project.researcherId} を追加しました。`);
+				console.log(`✅ a研究者番号 ${project.researcherId} を追加しました。`);
 			} else if (postResearcherResult.status === 409) {
 				console.error(`ℹ️  研究者番号 ${project.researcherId} は登録ずみです。`);
 			} else {
@@ -79,7 +65,7 @@ async function handleKakenSearch() {
 			if (postResult.ok) {
 				console.log(`✅ 課題番号 ${project.awardNumber} を追加しました。`);
 			} else if (postResult.status === 409) {
-				console.error(`ℹ️  課題番号 ${project.awardNumber} は登録ずみです。`);
+				console.error(`aiee  課題番号 ${project.awardNumber} は登録ずみです。`);
 			} else {
 				console.error(`❎ 課題番号 ${project.awardNumber} の追加に失敗しました。`);
 			}
@@ -142,13 +128,32 @@ async function handleKakenSearch() {
 			}
 			//}}}
 		}
-
-		// Local DBで課題番号を検索して、project-optionsに追加する
-
-		alert("課題番号の検索と更新が完了しました。");
-
 	} catch (error) {
-		console.error("エラー:", error);
-		alert(`課題番号の検索中にエラーが発生しました: ${error.message}`);
+		throw new Error(`❎ ${error.message}`);
 	}
 }
+//}}}
+
+//{{{ document.addEventListener("DOMContentLoaded", async function () {
+document.addEventListener("DOMContentLoaded", async function () {
+	const kakenButton = document.getElementById("KAKEN");
+	kakenButton.addEventListener("click", async function () {
+		//Buttonを処理中無効化
+		kakenButton.disabled = true;
+		kakenButton.textContent = '⌛ 処理中...';
+
+		try {
+			const researcherNumber = document.getElementById("研究者番号").value.trim();
+			//handleKakenSearchが終わるまで, nominateProjectNumberを実行しない
+			await handleKakenSearch(researcherNumber);
+			await nominateProjectNumber(researcherNumber);
+		} catch (error) {
+			console.error("エラー:", error);
+			alert(`🙇 課題番号の処理中にエラーが発生しました\n ${error.message}`);
+		} finally {
+			kakenButton.disabled = false;
+			kakenButton.textContent = '課題番号KAKEN検索';
+		}
+	});
+});
+//}}}
