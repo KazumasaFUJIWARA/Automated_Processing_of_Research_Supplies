@@ -7,7 +7,6 @@ datalistに追加する
 export async function nominateProjectNumber(researcherNumber) {
 	if (!researcherNumber) {
 		throw new Error("❎ No researcher number provided.");
-		return;
 	}
 
 	try {
@@ -38,10 +37,8 @@ export async function nominateProjectNumber(researcherNumber) {
 					});
 
 					alert(`${data.project_number.length}件該当しました.プロジェクトを選択してください. プロジェクトがない場合は手入力してください.`);
-					console.log(`✅ ${data.project_number.length} projects added to the datalist.`);
 				} else {
-					alert("該当するプロジェクトが見つかりませんでした.");
-					console.log("ℹ️ No projects found.");
+					alert("🚨 該当するプロジェクトが見つかりませんでした.");
 				}
 			})
 	} catch (error) {

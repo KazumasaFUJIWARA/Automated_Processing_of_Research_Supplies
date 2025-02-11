@@ -1,35 +1,41 @@
 document.getElementById("asign-info-from-db").addEventListener("click", async function () {
 	let pnumber = document.getElementById("研究課題番号").value;
+	let rnumber = document.getElementById("研究者番号").value;
 	const fetchButton = document.getElementById("asign-info-from-db");
 	fetchButton.disabled = true;
 	fetchButton.textContent = "⌛ 検索中...";
 
-//export async function nominateProjectNumber(researcherNumber) {
-
 	try {
-		// projects:get で課題情報取得
-		let projectResponse = await fetch(`/api/projects/${encodeURIComponent(pnumber)}`);
-		// JSON形式で取得
-		let projectData = await projectResponse.json();
-
-		if (!projectResponse.ok) {
-			console.error("🚨", projectData.error);
-			alert(`🚨 ${projectData.error}`);
+		if (!rnumber) {
+			alert("🚨 研究者番号を入力してください");
 			return;
 		}
 
-		// console.log("✅ api/projects", projectData);
+		if (!pnumber) {
+			alert("🚨 研究課題番号を入力してください");
+			return;
+		}
+
+		// projects:get で課題情報取得
+		let projectResponse = await fetch(`/api/projects/${encodeURIComponent(pnumber)}`);
+		if (!projectResponse.ok) {
+			let projectData = await projectResponse.json();
+			alert(`${projectData.detail}`);
+			return;
+		}
+
+		// JSON形式で取得
+		let projectData = await projectResponse.json();
 
 		document.getElementById("課題種別").value = projectData.ptype || "DB未登録";
 		document.getElementById("課題名").value = projectData.ptitle || "DB未登録";
 
 		// 課題配分情報取得
-		let allocationResponse = await fetch(`/api/projects/${encodeURIComponent(pnumber)}/allocations`);
+		let allocationResponse = await fetch(`/api/projects/${encodeURIComponent(pnumber)}/${encodeURIComponent(rnumber)}/allocations`);
 		let allocationData = await allocationResponse.json();
 
 		if (!allocationResponse.ok) {
-			console.error("🚨:", allocationData.error);
-			alert(`🚨: ${allocationData.error}`);
+			alert(`❎ ${allocationData.error}`);
 			return;
 		}
 
@@ -62,8 +68,10 @@ document.getElementById("asign-info-from-db").addEventListener("click", async fu
 		}
 
 	} catch (error) {
-		console.error("🚨", error);
-		alert("🚨 課題情報の検索中エラー");
+		error.response.json().then(errData => {
+		console.error("🚨 APIエラー:", errData.detail);
+		alert(`🚨 エラー: ${errData.detail}`);
+		});
 	} finally {
 		fetchButton.disabled = false;
 		fetchButton.textContent = "課題情報DB検索";

@@ -136,11 +136,10 @@ async def create_researcher(request: ResearcherCreateRequest):
 		return {"message": "研究者情報が追加されました。"}
 	
 	except sqlite3.IntegrityError as e:
-		raise HTTPException(status_code=409, detail="Conflict: 研究者番号が既に登録されています")
+		raise HTTPException(status_code=409, detail=f"🚫 {e}")
 
 	except sqlite3.Error as e:
-		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
-		logger.error(f"DB Error: {e}")
+		raise HTTPException(status_code=500, detail=f"❎ {e}")
 
 	finally:
 		conn.close()
@@ -161,9 +160,9 @@ async def get_researcher_name(researcher_number: str):
 		if row:
 			return {"研究者名": row["rname"]}
 		else:
-			return {"研究者名": "DB未登録"}
+			raise HTTPException(status_code=404, detail=f"🚫 未登録研究者番号: {researcher_number}")
 	except sqlite3.Error as e:
-		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+		raise HTTPException(status_code=500, detail=f"❎ {str(e)}")
 	finally:
 		conn.close()
 #}}}
@@ -194,12 +193,13 @@ async def update_researcher(researcher_number: str, request: ResearcherUpdateReq
 		cursor.execute(query, (request.researcherName, researcher_number))
 		conn.commit()
 
-		logger.info(f"researchers テーブルを更新しました: rnumber={researcher_number}")
 		return {"message": "研究者情報が更新されました。"}
 
+	except sqlite3.IntegrityError as e:
+		raise HTTPException(status_code=409, detail="🚫 {e}")
+
 	except sqlite3.Error as e:
-		logger.error(f"データベースエラー: {e}")
-		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+		raise HTTPException(status_code=500, detail="❎ {e}")
 
 	finally:
 		conn.close()
@@ -221,9 +221,9 @@ async def get_researcher_number(researcher_name: str):
 		if row:
 			return {"研究者番号": row["rnumber"]}
 		else:
-			return {"研究者番号": "DB未登録"}
+			raise HTTPException(status_code=404, detail="🚫 No data found")
 	except sqlite3.Error as e:
-		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+		raise HTTPException(status_code=500, detail=f"❎ {str(e)}")
 	finally:
 		conn.close()
 #}}}
@@ -281,14 +281,6 @@ async def create_project(request: ProjectCreateRequest):
 	cursor = conn.cursor()
 
 	try:
-		# 既存データの確認
-		cursor.execute("SELECT pnumber FROM projects WHERE pnumber = ?", (request.projectNumber,))
-		row = cursor.fetchone()
-
-		if row:
-			logger.info(f"既存データがあるため挿入をスキップ: pnumber={request.projectNumber}")
-			return {"message": "既存データがあるため、新規追加をスキップしました。"}
-
 		# 新規挿入
 		query = """
 			INSERT INTO projects (pnumber, ptype, ptitle)
@@ -300,9 +292,12 @@ async def create_project(request: ProjectCreateRequest):
 		logger.info(f"projects テーブルに新規挿入しました: pnumber={request.projectNumber}")
 		return {"message": "課題情報が追加されました。"}
 
+	except sqlite3.IntegrityError as e:
+		# eを409で表示
+		raise HTTPException(status_code=409, detail="🚫 {e}")
+
 	except sqlite3.Error as e:
-		logger.error(f"データベースエラー: {e}")
-		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+		raise HTTPException(status_code=500, detail="❎ {e}")
 
 	finally:
 		conn.close()
@@ -318,14 +313,6 @@ async def create_project(request: AllocationCreateRequest):
 	cursor = conn.cursor()
 
 	try:
-		# 既存データの確認
-		cursor.execute("SELECT pnumber FROM allocations WHERE pnumber = ?", (request.projectNumber,))
-		row = cursor.fetchone()
-
-		if row:
-			logger.info(f"ℹ️ 登録済み課題番号: pnumber={request.projectNumber}")
-			return {"ℹ️ ": "既存データがあるため、新規追加をスキップしました。"}
-
 		# 新規挿入
 		query = """
 			INSERT INTO allocations (pnumber, PI, CI, distributed_campus, distributed_location, installed_campus, installed_location)
@@ -341,9 +328,11 @@ async def create_project(request: AllocationCreateRequest):
 			request.installedLocation
 		))
 		conn.commit()
-
-		logger.info(f"✅ 課題情報を追加 : pnumber={request.projectNumber}")
 		return {"message": "アロケーション情報が追加されました。"}
+	except sqlite3.IntegrityError as e:
+		raise HTTPException(status_code=409, detail="🚫 {e}")
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail="❎ {e}")
 	finally:
 		conn.close()
 #}}}
@@ -371,7 +360,11 @@ async def get_project(project_number: str):
 			ptitle=row["ptitle"]
 		)
 	else:
-		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+		# project_number が見つからないことを示すエラーを返す
+		raise HTTPException(
+			status_code=404,
+			detail=f"🚫 未登録課題番号: {project_number}"
+		)
 #}}}
 
 #{{{ @app.put("/api/projects/{project_number}/")
@@ -448,7 +441,7 @@ async def get_allocation(project_number: str, researcher_number: str):
 			installedLocation=row["installed_location"] or ""
 		)
 	else:
-		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+		raise HTTPException(status_code=404, detail="❎ No data found")
 #}}}
 
 #{{{ @app.put("/api/projects/{project_number}/allocations/")

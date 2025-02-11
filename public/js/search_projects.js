@@ -37,14 +37,6 @@ async function handleKakenSearch(researcherNumber) {
 			};
 
 			const postResearcherResult = await fetch("/api/researchers/", postResearcherOptions);
-
-			if (postResearcherResult.ok) {
-				console.log(`✅ a研究者番号 ${project.researcherId} を追加しました。`);
-			} else if (postResearcherResult.status === 409) {
-				console.error(`ℹ️  研究者番号 ${project.researcherId} は登録ずみです。`);
-			} else {
-				console.error(`❎ 研究者番号 ${project.researcherId} の追加に失敗しました。`);
-			}
 			//}}}
 
 			//{{{ /api/projectsにPOSTする
@@ -61,14 +53,6 @@ async function handleKakenSearch(researcherNumber) {
 			};
 
 			const postResult = await fetch("/api/projects", postOptions);
-
-			if (postResult.ok) {
-				console.log(`✅ 課題番号 ${project.awardNumber} を追加しました。`);
-			} else if (postResult.status === 409) {
-				console.error(`aiee  課題番号 ${project.awardNumber} は登録ずみです。`);
-			} else {
-				console.error(`❎ 課題番号 ${project.awardNumber} の追加に失敗しました。`);
-			}
 			//}}}
 
 			//{{{ /api/projects/allocations/にPOSTする
@@ -92,15 +76,6 @@ async function handleKakenSearch(researcherNumber) {
 					body: JSON.stringify(postAllocationResponse)
 				};
 				const postAllocationResult = await fetch("/api/projects/allocations/", postAllocationOptions);
-
-				if (postAllocationResult.ok) {
-					console.log(`✅ PI ${project.researcherId} を追加しました。`);
-				} else if (postAllocationResult.status === 409) {
-					console.error(`ℹ️  PI ${project.researcherId} は登録ずみです。`);
-				} else {
-					console.error(`❎ PI ${project.researcherId} の追加に失敗しました。`);
-				}
-
 			} else {
 				const postAllocationResponse = {
 					"projectNumber": project.awardNumber,
@@ -117,14 +92,6 @@ async function handleKakenSearch(researcherNumber) {
 					body: JSON.stringify(postAllocationResponse)
 				};
 				const postAllocationResult = await fetch("/api/projects/allocations/", postAllocationOptions);
-
-				if (postAllocationResult.ok) {
-					console.log(`✅ CI ${project.researcherId} を追加しました。`);
-				} else if (postAllocationResult.status === 409) {
-					console.error(`ℹ️  CI ${project.researcherId} は登録ずみです。`);
-				} else {
-					console.error(`❎ CI ${project.researcherId} の追加に失敗しました。`);
-				}
 			}
 			//}}}
 		}
