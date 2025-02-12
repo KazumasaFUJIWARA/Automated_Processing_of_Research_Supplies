@@ -42,6 +42,6 @@ export async function nominateProjectNumber(researcherNumber) {
 
 		alert(`${data.project_number.length}件該当しました.プロジェクトを選択してください. プロジェクトがない場合は手入力してください.`);
 	} catch (error) {
-		throw new Error(`❎` + error.message);
+		throw new Error(error.message);
 	}
 }

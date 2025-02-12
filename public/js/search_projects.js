@@ -19,7 +19,7 @@ async function handleKakenSearch(researcherNumber) {
 
 		if (!response.ok) {
 			const data = await response.json();
-			throw new Error(`${response.status}: ${data.detail}`);
+			throw new Error(`Error ${response.status}: ${data.detail}`);
 		}
 
 		// jsonから課題情報の配列毎にローカルDBに保存する
@@ -99,7 +99,7 @@ async function handleKakenSearch(researcherNumber) {
 			//}}}
 		}
 	} catch (error) {
-		throw new Error(`❎ ${error.message}`);
+		throw new Error(`${error.message}`);
 	}
 }
 //}}}
@@ -119,7 +119,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 			await nominateProjectNumber(researcherNumber);
 		} catch (error) {
 			console.error("エラー:", error);
-			alert(`🙇 課題番号の処理中にエラーが発生しました\n ${error.message}`);
+			alert(`🙇 課題番号の検索と表示に失敗しました\n ${error.message}`);
 		} finally {
 			kakenButton.disabled = false;
 			kakenButton.textContent = '課題番号KAKEN検索';

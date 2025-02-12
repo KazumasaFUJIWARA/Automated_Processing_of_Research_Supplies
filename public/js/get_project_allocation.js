@@ -20,7 +20,7 @@ document.getElementById("asign-info-from-db").addEventListener("click", async fu
 		let projectResponse = await fetch(`/api/projects/${encodeURIComponent(pnumber)}`);
 		if (!projectResponse.ok) {
 			let projectData = await projectResponse.json();
-			alert(`${projectData.detail}`);
+			alert(`🙇 課題情報の検索に失敗しました. \n Error ${project.response.status}: ${projectData.detail}`);
 			return;
 		}
 

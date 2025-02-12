@@ -292,7 +292,7 @@ async def create_project(request: ProjectCreateRequest):
 		conn.commit()
 
 		logger.info(f"projects テーブルに新規挿入しました: pnumber={request.projectNumber}")
-		return {"message": "課題情報が追加されました。"}
+		return {"message": "{request.projectNumber} を追加しました。"}
 
 	except sqlite3.IntegrityError as e:
 		# eを409で表示

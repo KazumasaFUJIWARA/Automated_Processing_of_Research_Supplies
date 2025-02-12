@@ -68,7 +68,7 @@ document.getElementById("研究者番号KAKEN検索").addEventListener("click", 
 				console.log("🖥️レスポンス: ", result2);
 
 			} catch (error) {
-				console.error("🚨:", error);
+				throw new Error("❎ " + error);
 			}
 
 		}
