@@ -221,9 +221,9 @@ async def get_researcher_number(researcher_name: str):
 		if row:
 			return {"研究者番号": row["rnumber"]}
 		else:
-			raise HTTPException(status_code=404, detail="🚫 No data found")
+			raise HTTPException(status_code=404, detail=f"🚫 未登録研究者名: {researcher_name}")
 	except sqlite3.Error as e:
-		raise HTTPException(status_code=500, detail=f"❎ {str(e)}")
+		raise HTTPException(status_code=500, detail=f"❎ {e}")
 	finally:
 		conn.close()
 #}}}
@@ -244,7 +244,7 @@ async def search_researcher_number(researcher_name: str):
 	kaken_api_key = os.getenv("KAKEN")
 	logger.info(f"KAKEN API KEY: {kaken_api_key}")
 	if not kaken_api_key:
-		raise HTTPException(status_code=500, detail="環境変数 KAKEN が設定されていません")
+		raise HTTPException(status_code=500, detail="❎ 環境変数 KAKEN が設定されていません")
 
 	# KAKEN API のURL
 	api_url = f"https://nrid.nii.ac.jp/opensearch/?format=json&qg={rname}&appid={kaken_api_key}"
@@ -256,7 +256,10 @@ async def search_researcher_number(researcher_name: str):
 			data = response.json()
 
 		if not data.get("researchers"):
-			return {"message": "検索結果なし", "personIds": []}
+			raise HTTPException(
+				status_code=404,
+				detail=f"🚫 KAKEN未登録研究者名: {researcher_name}"
+			)
 
 		# 二重リストをフラット化
 		rnumbers = [
@@ -267,8 +270,7 @@ async def search_researcher_number(researcher_name: str):
 		return {"researcher_number": rnumbers}
 
 	except httpx.HTTPError as http_err:
-		logger.error(f"APIエラー: {http_err}")
-		raise HTTPException(status_code=500, detail="API取得エラーが発生しました")
+		raise HTTPException(status_code=500, detail=f"❎ {http_err}")
 #}}}
 
 #{{{ @app.post("/api/projects/")
@@ -382,7 +384,10 @@ async def update_project(project_number: str, request: ProjectUpdateRequest):
 		row = cursor.fetchone()
 
 		if not row:
-			raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+			raise HTTPException(
+				status_code=404,
+				detail=f"🚫 未登録課題番号: {project_number}"
+			)
 
 		# データ更新
 		query = """
@@ -393,12 +398,13 @@ async def update_project(project_number: str, request: ProjectUpdateRequest):
 		cursor.execute(query, (request.projectType, request.projectTitle, project_number))
 		conn.commit()
 
-		logger.info(f"✅ projects テーブルを更新しました: 課題番号={project_number}")
 		return {"✅": "課題情報が更新されました。"}
 
 	except sqlite3.Error as e:
-		logger.error(f"データベースエラー: {e}")
-		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+		raise HTTPException(
+			status_code=500,
+			detail=f"❎ {e}"
+		)
 
 	finally:
 		conn.close()
@@ -441,7 +447,10 @@ async def get_allocation(project_number: str, researcher_number: str):
 			installedLocation=row["installed_location"] or ""
 		)
 	else:
-		raise HTTPException(status_code=404, detail="❎ No data found")
+		raise HTTPException(
+			status_code=404,
+			detail=f"❎ 未登録キー: {project_number}, {researcher_number}"
+		)
 #}}}
 
 #{{{ @app.put("/api/projects/{project_number}/allocations/")
@@ -460,7 +469,10 @@ async def update_allocation(project_number: str, request: AllocationUpdateReques
 		row = cursor.fetchone()
 
 		if not row:
-			raise HTTPException(status_code=404, detail="❎ 指定された課題番号のデータは存在しません")
+			raise HTTPException(
+				status_code=404,
+				detail=f"❎ 未登録キー: {project_number}, {request.PI}, {request.CI}"
+		)
 
 		# データ更新
 		query = """
@@ -479,15 +491,10 @@ async def update_allocation(project_number: str, request: AllocationUpdateReques
 		))
 		conn.commit()
 
-		logger.info(f"✅ allocations テーブルを更新しました:")
-		logger.info(f"課題番号: {project_number}")
-		logger.info(f"PI: {request.PI}")
-		logger.info(f"CI: {request.CI}")
 		return {"✅": "課題情報が更新されました。"}
 
 	except sqlite3.Error as e:
-		logger.error(f"❎ データベースエラー: {e}")
-		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+		raise HTTPException(status_code=500, detail=f"❎ {e}")
 
 	finally:
 		conn.close()
@@ -514,9 +521,17 @@ async def get_project_numbers(researcher_number: str):
 			pnumber_list = [row["pnumber"] for row in rows]
 			return {"project_number": pnumber_list}
 		else:
-			return {"project_number": []}  # 空のリストを返す
+			raise HTTPException(
+				status_code=404,
+				detail=f"🚫 未登録研究者番号: {researcher_number}"
+			)
+
 	except sqlite3.Error as e:
-		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+		raise HTTPException(
+			status_code=500,
+			detail=f"❎ {e}"
+		)
+
 	finally:
 		conn.close()
 #}}}
@@ -543,7 +558,10 @@ async def search_project_kaken(research_number: str):
 			xml_data = response.text
 
 		if not xml_data.strip():
-			raise HTTPException(status_code=500, detail="KAKEN API からのレスポンスが空です")
+			raise HTTPException(
+				status_code=500,
+				detail="KAKEN API からのレスポンスが空です"
+			)
 
 		# XML をパース
 		root = ET.fromstring(xml_data)
@@ -551,7 +569,7 @@ async def search_project_kaken(research_number: str):
 		# `grantAward` タグを取得
 		grant_awards = root.findall(".//grantAward")
 		if not grant_awards:
-			raise HTTPException(status_code=404, detail="該当する課題番号が見つかりませんでした")
+			raise HTTPException(status_code=404, detail=f"KAKEN未登録研究者番号: {research_number}")
 
 		projects = []
 
@@ -580,11 +598,11 @@ async def search_project_kaken(research_number: str):
 		return {"projects": projects}
 
 	except httpx.HTTPError as http_err:
-		raise HTTPException(status_code=500, detail=f"KAKEN API エラー: {str(http_err)}")
+		raise HTTPException(status_code=500, detail=f"❎ {str(http_err)}")
 	except ET.ParseError:
-		raise HTTPException(status_code=500, detail="KAKEN API の XML レスポンスを解析できませんでした")
+		raise HTTPException(status_code=500, detail="❎ KAKEN API の XML レスポンスを解析できませんでした")
 	except Exception as err:
-		raise HTTPException(status_code=500, detail=f"サーバーエラー: {str(err)}")
+		raise HTTPException(status_code=500, detail=f"🖥️ Server Error {str(err)}")
 #}}}
 
 #{{{ @app.post("/api/pdf2json/")
@@ -634,8 +652,7 @@ async def extract_json_from_pdf(pdf: UploadFile = File(...)):
 		json_response = response.json()
 
 		if response.status_code != 200:
-			logger.error(f"Gemini API error: {json_response}")
-			raise HTTPException(status_code=500, detail="Failed to process PDF.")
+			raise HTTPException(status_code=500, detail=f"❎ Gemini API error: {json_response}")
 
 		# JSON部分の抽出
 		extracted_text = json_response.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
@@ -646,8 +663,7 @@ async def extract_json_from_pdf(pdf: UploadFile = File(...)):
 		return extracted_json
 
 	except HTTPException as http_err:
-		raise http_err
+		raise HTTPException(status_code=500, detail=f"❎ {str(http_err)}")
 	except Exception as e:
-		logger.error(f"Error in PDF JSON extraction: {str(e)}")
-		raise HTTPException(status_code=500, detail="Internal server error while extracting JSON from PDF")
+		raise HTTPException(status_code=500, detail=f"❎ {e}")
 #}}}

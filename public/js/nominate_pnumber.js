@@ -6,43 +6,42 @@ datalistに追加する
 
 export async function nominateProjectNumber(researcherNumber) {
 	if (!researcherNumber) {
-		throw new Error("❎ No researcher number provided.");
+		// 表示文字を減らす為に, alertしてreturn
+		alert("🚨 研究者番号を入力してください.");
+		return;
 	}
 
 	try {
-		fetch(`/api/projects/${encodeURIComponent(researcherNumber)}/project_numbers`)
-			.then(response => response.json())
-			// 返り値の形式は { project_number: [課題番号1, 課題番号2, ...] }
-			.then(data => {
-				// data example: project_number: ['24H00024', '24K16957']
-				//datalist id="projct-options"のdatalistを指定
-				const projectOptions = document.getElementById("project-options");
-				// Clear existing options
-				projectOptions.innerHTML = "";
+		const response = await fetch(`/api/projects/${encodeURIComponent(researcherNumber)}/project_numbers`)
 
-				console.log(data.project_number);
+		if (!response.ok) {
+			const kakenError = await response.json();
+			throw new Error(response.status + ": " + kakenError.detail);
+		}
+		
+		// data example: project_number: ['24H00024', '24K16957']
+		//datalist id="projct-options"のdatalistを指定
+		const projectOptions = document.getElementById("project-options");
+		// Clear existing options
+		projectOptions.innerHTML = "";
 
-				// data.project_number=[pnum1, pnum2, ...]が存在し、その要素数が1以上の場合
-				if (data.project_number && data.project_number.length > 0) {
-					// data.project_numberの各要素に対して以下を実行
-					data.project_number.forEach(project_number => {
-						// option要素を作成
-						const option = document.createElement("option");
-						// option要素のvalue属性にproject_numberを設定
-						option.value = project_number;
-						// option要素のtextContentにproject_numberを設定
-						option.textContent = project_number;
-						// option要素をdatalistに追加
-						projectOptions.appendChild(option);
-					});
+		const data = await response.json();
+		console.log(data.project_number);
 
-					alert(`${data.project_number.length}件該当しました.プロジェクトを選択してください. プロジェクトがない場合は手入力してください.`);
-				} else {
-					alert("🚨 該当するプロジェクトが見つかりませんでした.");
-				}
-			})
+		// data.project_numberの各要素に対して以下を実行
+		data.project_number.forEach(project_number => {
+			// option要素を作成
+			const option = document.createElement("option");
+			// option要素のvalue属性にproject_numberを設定
+			option.value = project_number;
+			// option要素のtextContentにproject_numberを設定
+			option.textContent = project_number;
+			// option要素をdatalistに追加
+			projectOptions.appendChild(option);
+		});
+
+		alert(`${data.project_number.length}件該当しました.プロジェクトを選択してください. プロジェクトがない場合は手入力してください.`);
 	} catch (error) {
-		alert("🙇 プロジェクト番号の取得中にエラーが発生しました.")
-		console.error("❎ Error fetching project numbers:", error);
+		throw new Error(`❎` + error.message);
 	}
 }

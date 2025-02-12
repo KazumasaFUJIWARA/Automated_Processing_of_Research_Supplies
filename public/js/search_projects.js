@@ -6,7 +6,9 @@ import { nominateProjectNumber } from './nominate_pnumber.js';
 //KAKEN APIを呼び出して、課題番号を取得し, Local DBに保存する
 async function handleKakenSearch(researcherNumber) {
 	if (!researcherNumber) {
-		throw new Error("❎ No researcher number provided.");
+		// 表示削減の為, alertしてreturn
+		alert ("🚨 研究者番号を入力してください");
+		return;
 	}
 
 	try {
@@ -16,7 +18,8 @@ async function handleKakenSearch(researcherNumber) {
 		});
 
 		if (!response.ok) {
-			throw new Error(`❎ ${response.status} ${response.statusText}`);
+			const data = await response.json();
+			throw new Error(`${response.status}: ${data.detail}`);
 		}
 
 		// jsonから課題情報の配列毎にローカルDBに保存する
