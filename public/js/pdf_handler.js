@@ -1,6 +1,7 @@
 // Description: 研究者番号を入力し、課題番号を取得するためのスクリプト
 //export async function nominateProjectNumber(researcherNumber) {
-import { nominateProjectNumber } from './nominate_pnumber.js';
+import { nominateProjectNumber } from './module_functions.js';
+import { searchregisterResearcherNumber } from './module_functions.js';
 
 //{{{ document.addEventListener("DOMContentLoaded", function () {
 document.addEventListener("DOMContentLoaded", function () {
@@ -49,9 +50,19 @@ document.addEventListener("DOMContentLoaded", function () {
 				const data = await response.json();
 				document.getElementById("研究者番号").value = data.研究者番号;
 			} else {
-
+				searchregisterResearcherNumber(extracted.receiver_name);
 			}
 
+			// Id:研究者番号の値を取得
+			const researcherNumber = document.getElementById("研究者番号").value;
+
+			if (!researcherNumber) {
+				throw new Error("研究者番号がローカルDBとKAKEN DBで見つかりませんでした.");
+				return;
+			}
+
+			// 課題番号の取得
+			nominateProjectNumber(researcherNumber);
 
 			// 項目情報の転記
 			fillItemData(extracted.items);
@@ -60,6 +71,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
 		} catch(error){
 			alert("🙇 PDFの処理中にエラーが発生しました。\n " + error.message);
+		} finally {
+			pdfImportButton.disabled = false;
+			pdfImportButton.textContent = 'PDF情報転記';
 		}
 	});
 });

@@ -1,6 +1,6 @@
 // Description: 研究者番号を入力し、課題番号を取得するためのスクリプト
 //export async function nominateProjectNumber(researcherNumber) {
-import { nominateProjectNumber } from './nominate_pnumber.js';
+import { nominateProjectNumber } from './module_functions.js';
 
 //{{{ async function handleKakenSearch(researcherNumber) {
 //KAKEN APIを呼び出して、課題番号を取得し, Local DBに保存する
