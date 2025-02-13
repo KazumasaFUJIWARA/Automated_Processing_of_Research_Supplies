@@ -1,48 +1,23 @@
+// Description: 研究者番号を入力し、課題番号を取得するためのスクリプト
+//export async function nominateProjectNumber(researcherNumber) {
+import { nominateProjectNumber } from './module_functions.js';
+
 document.addEventListener("DOMContentLoaded", function() {
 	const fetchButton = document.getElementById("local-an-fetch");
-	fetchButton.addEventListener("click", function() {
-		const researcherNumber = document.getElementById("研究者番号").value.trim();
-		if (!researcherNumber) {
-			alert("研究者番号を入力してください。");
-			return;
+	fetchButton.addEventListener("click", async function() {
+		// ボタンを無効化し、テキストを変更
+		fetchButton.disabled = true;
+		fetchButton.textContent = '⌛処理中';
+
+		try{
+			const researcherNumber = document.getElementById("研究者番号").value.trim();
+			await nominateProjectNumber(researcherNumber);
+		} catch(error){
+			alert("🙇 課題番号のリスト作成に失敗しました \n" + error)
+		} finally {
+			// ボタンを有効化し、テキストを変更
+			fetchButton.disabled = false;
+			fetchButton.textContent = '課題番号DB検索';
 		}
-
-		fetch(`/allocations:get:pnumber?rnumber=${encodeURIComponent(researcherNumber)}`)
-			.then(response => response.json())
-			// 返り値の形式は { pnumbers: [課題番号1, 課題番号2, ...] }
-			.then(data => {
-				// data example: pnumbers: ['24H00024', '24K16957']
-				//datalist id="projct-options"のdatalistを指定
-				const projectOptions = document.getElementById("project-options");
-				// Clear existing options
-				projectOptions.innerHTML = "";
-
-				console.log(data.pnumbers);
-
-				// data.pnumbers=[pnum1, pnum2, ...]が存在し、その要素数が1以上の場合
-				if (data.pnumbers && data.pnumbers.length > 0) {
-					// data.pnumbersの各要素に対して以下を実行
-					data.pnumbers.forEach(pnumbers => {
-						// option要素を作成
-						const option = document.createElement("option");
-						// option要素のvalue属性にpnumbersを設定
-						option.value = pnumbers;
-						// option要素のtextContentにpnumbersを設定
-						option.textContent = pnumbers;
-						// option要素をdatalistに追加
-						projectOptions.appendChild(option);
-					});
-
-					alert(`${data.pnumbers.length}件該当しました.プロジェクトを選択してください. プロジェクトがない場合は手入力してください.`);
-					console.log(`${data.pnumbers.length} projects added to the datalist.`);
-				} else {
-					console.log("No projects found.");
-					alert("該当するプロジェクトが見つかりませんでした.");
-				}
-			})
-			.catch(error => {
-				console.error("Error fetching data: ", error);
-			});
 	});
 });
-

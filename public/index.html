@@ -37,7 +37,7 @@
 				<button
 					id="pdf-import"
 					class="pain-button"
-					data-tooltip="現在試験的にtest.jsonの情報をフォームに反映します."
+					data-tooltip="pdfから必要情報を抽出します."
 				>
 					PDF情報転記
 				</button>
@@ -53,7 +53,7 @@
 						list="reseacrcher-options"
 						placeholder="研究者番号"
 						data-tooltip="
-							研究者名からローカルかCiNiiのDBから候補を取得します.
+							研究者名からローカルかKAKENのDBから候補を取得します.
 							候補が表示されない場合は, 手入力してください.
 						"
 					>
@@ -74,11 +74,12 @@
 						placeholder="研究者氏名"
 					>
 					<button
-						id="研究者番号CiNii検索"
-						data-tooltip="研究者名からCiNiiにアクセスして研究者番号を取得します.検索結果は, ローカルDBに保存されます."
+						id="研究者番号KAKEN検索"
+						data-tooltip="研究者名からKAKENにアクセスして研究者番号を取得します.検索結果は, ローカルDBに保存されます."
 					>
-						研究者番号 CiNii検索
+						研究者番号 KAKEN検索
 					</button>
+
 				</div>
 
 				<div class="project-search">
@@ -112,6 +113,7 @@
 						課題番号の一覧をローカルDBから取得する為のボタンです."
 						data-html="true"
 					>
+					<!-- 処理中の表示  -->
 						課題番号DB検索
 					</button>
 					<button
@@ -400,33 +402,34 @@
 		</div>
 	</div>
 
-	<script src="./json_imp.js"></script>
-	<script src="./json_exp.js"></script>
+	<script src="static/js/json_imp.js"></script>
+	<script src="static/js/json_exp.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.15.349/pdf.min.js"></script>
-	<script src="./pdf_preview.js"></script>
-	<script src="./zoom.js"></script>
-	<script src="./input_rule.js"></script>
+	<script src="static/js/pdf_preview.js"></script>
+	<script src="static/js/zoom.js"></script>
+	<script src="static/js/input_rule.js"></script>
 
-	<!-- pdfを読み込んで転記する -->
-	<script src="./pdf_handler.js"></script>
+	<!-- module	-->
+	<script type="module" src="static/js/nominate_pnumber.js"></script>
+	<script type="module" src="static/js/module_functions.js"></script>
 
 	<!-- 課題情報DB検索用js -->
-	<script src="./get_project_allocation.js"></script>
+	<script src="static/js/get_project_allocation.js"></script>
 
-	<!-- 課題番号DB検索用js -->
-	<script src="./get_pnumber.js"></script>
+	<!-- 課題番号DB登録用js -->
+	<script type="module" src="static/js/get_pnumber.js"></script>
 
 	<!-- 研究者番号CiNii検索用js -->
-	<script src="./search_rnumber.js"></script>
+	<script type="module" src="static/js/search_rnumber.js"></script>
 
 	<!-- 課題番号KAKEN検索用js -->
-	<script src="./search_projects.js"></script>
-
-	<!-- auto completeをoff? -->
-	<script src="./autocomplete.js"></script>
+	<script type="module" src="static/js/search_projects.js"></script>
 
 	<!-- db 更新スクリプト -->
-	<script src="./update_db.js" defer></script>
+	<script src="static/js/update_db.js" defer></script>
+
+	<!-- pdfを読み込んで転記する -->
+	<script type="module" src="static/js/pdf_handler.js"></script>
 
 	<!-- <script src="/client.js"></script> -->
 	<!-- <script src="./db_update.js"></script> -->

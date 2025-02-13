@@ -1,3 +1,5 @@
+#/api/projects/{project_number}/{researcher_number}/allocations
+
 # {{{ import
 from fastapi import FastAPI, HTTPException, Path, File, UploadFile
 from fastapi.responses import FileResponse
@@ -56,10 +58,31 @@ def get_db_connection():
 class AllocationResponse(BaseModel):
 	PI: str
 	CI: str
-	delivered_campus: str
-	delivered_location: str
-	installed_campus: str
-	installed_location: str
+	deliveredCampus: str
+	deliveredLocation: str
+	installedCampus: str
+	installedLocation: str
+#}}}
+
+#{{{ class AllocationCreateRequest(BaseModel):
+class AllocationCreateRequest(BaseModel):
+	projectNumber: str
+	PI: str
+	CI: str
+	deliveredCampus: str
+	deliveredLocation: str
+	installedCampus: str
+	installedLocation: str
+#}}}
+
+#{{{ class AllocationUpdateRequest(BaseModel):
+class AllocationUpdateRequest(BaseModel):
+	PI: str
+	CI: str
+	deliveredCampus: str
+	deliveredLocation: str
+	installedCampus: str
+	installedLocation: str
 #}}}
 
 #{{{ class ProjectResponse(BaseModel):
@@ -103,14 +126,6 @@ async def create_researcher(request: ResearcherCreateRequest):
 	cursor = conn.cursor()
 
 	try:
-		# 既存データの確認
-		cursor.execute("SELECT rnumber FROM researchers WHERE rnumber = ?", (request.researcherNumber,))
-		row = cursor.fetchone()
-
-		if row:
-			logger.info(f"既存データがあるため挿入をスキップ: rnumber={request.researcherNumber}")
-			return {"message": "既存データがあるため、新規追加をスキップしました。"}
-
 		# 新規挿入
 		query = """
 			INSERT INTO researchers (rnumber, rname)
@@ -118,13 +133,13 @@ async def create_researcher(request: ResearcherCreateRequest):
 		"""
 		cursor.execute(query, (request.researcherNumber, request.researcherName))
 		conn.commit()
-
-		logger.info(f"researchers テーブルに新規挿入しました: rnumber={request.researcherNumber}")
 		return {"message": "研究者情報が追加されました。"}
+	
+	except sqlite3.IntegrityError as e:
+		raise HTTPException(status_code=409, detail=f"🚫 {e}")
 
 	except sqlite3.Error as e:
-		logger.error(f"データベースエラー: {e}")
-		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+		raise HTTPException(status_code=500, detail=f"❎ {e}")
 
 	finally:
 		conn.close()
@@ -145,9 +160,9 @@ async def get_researcher_name(researcher_number: str):
 		if row:
 			return {"研究者名": row["rname"]}
 		else:
-			return {"研究者名": "DB未登録"}
+			raise HTTPException(status_code=404, detail=f"🚫 未登録研究者番号: {researcher_number}")
 	except sqlite3.Error as e:
-		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+		raise HTTPException(status_code=500, detail=f"❎ {str(e)}")
 	finally:
 		conn.close()
 #}}}
@@ -178,12 +193,13 @@ async def update_researcher(researcher_number: str, request: ResearcherUpdateReq
 		cursor.execute(query, (request.researcherName, researcher_number))
 		conn.commit()
 
-		logger.info(f"researchers テーブルを更新しました: rnumber={researcher_number}")
 		return {"message": "研究者情報が更新されました。"}
 
+	except sqlite3.IntegrityError as e:
+		raise HTTPException(status_code=409, detail="🚫 {e}")
+
 	except sqlite3.Error as e:
-		logger.error(f"データベースエラー: {e}")
-		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+		raise HTTPException(status_code=500, detail="❎ {e}")
 
 	finally:
 		conn.close()
@@ -205,9 +221,9 @@ async def get_researcher_number(researcher_name: str):
 		if row:
 			return {"研究者番号": row["rnumber"]}
 		else:
-			return {"研究者番号": "DB未登録"}
+			raise HTTPException(status_code=404, detail=f"🚫 未登録研究者名: {researcher_name}")
 	except sqlite3.Error as e:
-		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+		raise HTTPException(status_code=500, detail=f"❎ {e}")
 	finally:
 		conn.close()
 #}}}
@@ -217,7 +233,7 @@ async def get_researcher_number(researcher_name: str):
 async def search_researcher_number(researcher_name: str):
 	"""
 	研究者名からKAKENのAPIを利用して研究者番号を検索し、DBに登録する
-	出力は{"研究者番号": row["rnumber"] }の形式
+	出力は{"researcher_number": row["rnumber"] }の形式
 	同姓同名を想定し, 研究者番号はリストで返す
 	"""
 
@@ -228,7 +244,7 @@ async def search_researcher_number(researcher_name: str):
 	kaken_api_key = os.getenv("KAKEN")
 	logger.info(f"KAKEN API KEY: {kaken_api_key}")
 	if not kaken_api_key:
-		raise HTTPException(status_code=500, detail="環境変数 KAKEN が設定されていません")
+		raise HTTPException(status_code=500, detail="❎ 環境変数 KAKEN が設定されていません")
 
 	# KAKEN API のURL
 	api_url = f"https://nrid.nii.ac.jp/opensearch/?format=json&qg={rname}&appid={kaken_api_key}"
@@ -240,7 +256,10 @@ async def search_researcher_number(researcher_name: str):
 			data = response.json()
 
 		if not data.get("researchers"):
-			return {"message": "検索結果なし", "personIds": []}
+			raise HTTPException(
+				status_code=404,
+				detail=f"🚫 KAKEN未登録研究者名: {researcher_name}"
+			)
 
 		# 二重リストをフラット化
 		rnumbers = [
@@ -248,11 +267,10 @@ async def search_researcher_number(researcher_name: str):
 			for r in data.get("researchers", [])
 		]
 
-		return {"研究者番号": rnumbers}
+		return {"researcher_number": rnumbers}
 
 	except httpx.HTTPError as http_err:
-		logger.error(f"APIエラー: {http_err}")
-		raise HTTPException(status_code=500, detail="API取得エラーが発生しました")
+		raise HTTPException(status_code=500, detail=f"❎ {http_err}")
 #}}}
 
 #{{{ @app.post("/api/projects/")
@@ -265,14 +283,6 @@ async def create_project(request: ProjectCreateRequest):
 	cursor = conn.cursor()
 
 	try:
-		# 既存データの確認
-		cursor.execute("SELECT pnumber FROM projects WHERE pnumber = ?", (request.projectNumber,))
-		row = cursor.fetchone()
-
-		if row:
-			logger.info(f"既存データがあるため挿入をスキップ: pnumber={request.projectNumber}")
-			return {"message": "既存データがあるため、新規追加をスキップしました。"}
-
 		# 新規挿入
 		query = """
 			INSERT INTO projects (pnumber, ptype, ptitle)
@@ -282,12 +292,49 @@ async def create_project(request: ProjectCreateRequest):
 		conn.commit()
 
 		logger.info(f"projects テーブルに新規挿入しました: pnumber={request.projectNumber}")
-		return {"message": "課題情報が追加されました。"}
+		return {"message": "{request.projectNumber} を追加しました。"}
+
+	except sqlite3.IntegrityError as e:
+		# eを409で表示
+		raise HTTPException(status_code=409, detail="🚫 {e}")
 
 	except sqlite3.Error as e:
-		logger.error(f"データベースエラー: {e}")
-		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+		raise HTTPException(status_code=500, detail="❎ {e}")
 
+	finally:
+		conn.close()
+#}}}
+
+#{{{ @app.post("/api/projects/allocations/")
+@app.post("/api/projects/allocations/")
+async def create_project(request: AllocationCreateRequest):
+	"""
+	新しいプロジェクトを作成するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		# 新規挿入
+		query = """
+			INSERT INTO allocations (pnumber, PI, CI, distributed_campus, distributed_location, installed_campus, installed_location)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		"""
+		cursor.execute(query, (
+			request.projectNumber,
+			request.PI,
+			request.CI,
+			request.deliveredCampus,
+			request.deliveredLocation,
+			request.installedCampus,
+			request.installedLocation
+		))
+		conn.commit()
+		return {"message": "アロケーション情報が追加されました。"}
+	except sqlite3.IntegrityError as e:
+		raise HTTPException(status_code=409, detail="🚫 {e}")
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail="❎ {e}")
 	finally:
 		conn.close()
 #}}}
@@ -315,7 +362,11 @@ async def get_project(project_number: str):
 			ptitle=row["ptitle"]
 		)
 	else:
-		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+		# project_number が見つからないことを示すエラーを返す
+		raise HTTPException(
+			status_code=404,
+			detail=f"🚫 未登録課題番号: {project_number}"
+		)
 #}}}
 
 #{{{ @app.put("/api/projects/{project_number}/")
@@ -333,7 +384,10 @@ async def update_project(project_number: str, request: ProjectUpdateRequest):
 		row = cursor.fetchone()
 
 		if not row:
-			raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+			raise HTTPException(
+				status_code=404,
+				detail=f"🚫 未登録課題番号: {project_number}"
+			)
 
 		# データ更新
 		query = """
@@ -344,26 +398,30 @@ async def update_project(project_number: str, request: ProjectUpdateRequest):
 		cursor.execute(query, (request.projectType, request.projectTitle, project_number))
 		conn.commit()
 
-		logger.info(f"✅ projects テーブルを更新しました: 課題番号={project_number}")
 		return {"✅": "課題情報が更新されました。"}
 
 	except sqlite3.Error as e:
-		logger.error(f"データベースエラー: {e}")
-		raise HTTPException(status_code=500, detail="データベースエラーが発生しました。")
+		raise HTTPException(
+			status_code=500,
+			detail=f"❎ {e}"
+		)
 
 	finally:
 		conn.close()
 #}}}
 
-#{{{ @app.get("/api/projects/{project_number}/allocations", response_model=AllocationResponse)
-@app.get("/api/projects/{project_number}/allocations", response_model=AllocationResponse)
-async def get_allocation(project_number: str):
-	logger.info(f"課題番号: {project_number} のアロケーション情報を取得します")
+#{{{ @app.get("/api/projects/{project_number}/{researcher_number}/allocations", response_model=AllocationResponse)
+@app.get("/api/projects/{project_number}/{researcher_number}/allocations", response_model=AllocationResponse)
+async def get_allocation(project_number: str, researcher_number: str):
 	"""
-	指定された課題番号 (project_number) に対応する allocations テーブルの情報を取得
+	指定された課題番号 (project_number) と研究者番号 (researcher_number) に対応する
+	研究課題の配置情報を取得
 	"""
+
 	conn = get_db_connection()
 	cursor = conn.cursor()
+	# pnumber = project_number かつ
+	# PI = researcher_number または CI = researcher_number のデータを取得
 	query = """
 		SELECT
 			PI,
@@ -372,9 +430,9 @@ async def get_allocation(project_number: str):
 			distributed_location AS delivered_location,
 			installed_campus AS installed_campus,
 			installed_location AS installed_location
-		FROM allocations WHERE pnumber = ?
+		FROM allocations WHERE pnumber = ? AND (PI = ? OR CI = ?)
 	"""
-	cursor.execute(query, (project_number,))
+	cursor.execute(query, (project_number, researcher_number, researcher_number))
 	row = cursor.fetchone()
 	conn.close()
 
@@ -382,13 +440,64 @@ async def get_allocation(project_number: str):
 		return AllocationResponse(
 			PI=row["PI"],
 			CI=row["CI"],
-			delivered_campus=row["delivered_campus"],
-			delivered_location=row["delivered_location"],
-			installed_campus=row["installed_campus"],
-			installed_location=row["installed_location"]
+			# Null の場合は空文字列を返す
+			deliveredCampus=row["delivered_campus"] or "",
+			deliveredLocation=row["delivered_location"] or "",
+			installedCampus=row["installed_campus"] or "",
+			installedLocation=row["installed_location"] or ""
 		)
 	else:
-		raise HTTPException(status_code=404, detail="指定された課題番号のデータは存在しません")
+		raise HTTPException(
+			status_code=404,
+			detail=f"❎ 未登録キー: {project_number}, {researcher_number}"
+		)
+#}}}
+
+#{{{ @app.put("/api/projects/{project_number}/allocations/")
+@app.put("/api/projects/{project_number}/allocations/")
+async def update_allocation(project_number: str, request: AllocationUpdateRequest):
+	"""
+	指定した課題の配置情報を更新するエンドポイント
+	"""
+	conn = get_db_connection()
+	cursor = conn.cursor()
+
+	try:
+		# 既存データの確認
+		# キーは pnumber, PI, CI の組み合わせ
+		cursor.execute("SELECT pnumber FROM allocations WHERE pnumber = ? AND PI = ? AND CI = ?", (project_number, request.PI, request.CI))
+		row = cursor.fetchone()
+
+		if not row:
+			raise HTTPException(
+				status_code=404,
+				detail=f"❎ 未登録キー: {project_number}, {request.PI}, {request.CI}"
+		)
+
+		# データ更新
+		query = """
+			UPDATE allocations
+			SET distributed_campus = ?, distributed_location = ?, installed_campus = ?, installed_location = ?
+			WHERE pnumber = ? AND PI = ? AND CI = ?
+		"""
+		cursor.execute(query, (
+			request.deliveredCampus,
+			request.deliveredLocation,
+			request.installedCampus,
+			request.installedLocation,
+			project_number,
+			request.PI,
+			request.CI
+		))
+		conn.commit()
+
+		return {"✅": "課題情報が更新されました。"}
+
+	except sqlite3.Error as e:
+		raise HTTPException(status_code=500, detail=f"❎ {e}")
+
+	finally:
+		conn.close()
 #}}}
 
 #  {{{ @app.get("/api/projects/{researcher_number}/project_numbers")
@@ -410,11 +519,19 @@ async def get_project_numbers(researcher_number: str):
 
 		if rows:
 			pnumber_list = [row["pnumber"] for row in rows]
-			return {"課題番号": pnumber_list}
+			return {"project_number": pnumber_list}
 		else:
-			return {"課題番号": []}  # 空のリストを返す
+			raise HTTPException(
+				status_code=404,
+				detail=f"🚫 未登録研究者番号: {researcher_number}"
+			)
+
 	except sqlite3.Error as e:
-		raise HTTPException(status_code=500, detail=f"データベースエラー: {str(e)}")
+		raise HTTPException(
+			status_code=500,
+			detail=f"❎ {e}"
+		)
+
 	finally:
 		conn.close()
 #}}}
@@ -441,7 +558,10 @@ async def search_project_kaken(research_number: str):
 			xml_data = response.text
 
 		if not xml_data.strip():
-			raise HTTPException(status_code=500, detail="KAKEN API からのレスポンスが空です")
+			raise HTTPException(
+				status_code=500,
+				detail="KAKEN API からのレスポンスが空です"
+			)
 
 		# XML をパース
 		root = ET.fromstring(xml_data)
@@ -449,7 +569,7 @@ async def search_project_kaken(research_number: str):
 		# `grantAward` タグを取得
 		grant_awards = root.findall(".//grantAward")
 		if not grant_awards:
-			raise HTTPException(status_code=404, detail="該当する課題番号が見つかりませんでした")
+			raise HTTPException(status_code=404, detail=f"KAKEN未登録研究者番号: {research_number}")
 
 		projects = []
 
@@ -478,11 +598,11 @@ async def search_project_kaken(research_number: str):
 		return {"projects": projects}
 
 	except httpx.HTTPError as http_err:
-		raise HTTPException(status_code=500, detail=f"KAKEN API エラー: {str(http_err)}")
+		raise HTTPException(status_code=500, detail=f"❎ {str(http_err)}")
 	except ET.ParseError:
-		raise HTTPException(status_code=500, detail="KAKEN API の XML レスポンスを解析できませんでした")
+		raise HTTPException(status_code=500, detail="❎ KAKEN API の XML レスポンスを解析できませんでした")
 	except Exception as err:
-		raise HTTPException(status_code=500, detail=f"サーバーエラー: {str(err)}")
+		raise HTTPException(status_code=500, detail=f"🖥️ Server Error {str(err)}")
 #}}}
 
 #{{{ @app.post("/api/pdf2json/")
@@ -532,8 +652,7 @@ async def extract_json_from_pdf(pdf: UploadFile = File(...)):
 		json_response = response.json()
 
 		if response.status_code != 200:
-			logger.error(f"Gemini API error: {json_response}")
-			raise HTTPException(status_code=500, detail="Failed to process PDF.")
+			raise HTTPException(status_code=500, detail=f"❎ Gemini API error: {json_response}")
 
 		# JSON部分の抽出
 		extracted_text = json_response.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
@@ -544,10 +663,7 @@ async def extract_json_from_pdf(pdf: UploadFile = File(...)):
 		return extracted_json
 
 	except HTTPException as http_err:
-		raise http_err
+		raise HTTPException(status_code=500, detail=f"❎ {str(http_err)}")
 	except Exception as e:
-		logger.error(f"Error in PDF JSON extraction: {str(e)}")
-		raise HTTPException(status_code=500, detail="Internal server error while extracting JSON from PDF")
+		raise HTTPException(status_code=500, detail=f"❎ {e}")
 #}}}
-
-# ✅
