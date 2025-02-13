@@ -37,7 +37,7 @@
 				<button
 					id="pdf-import"
 					class="pain-button"
-					data-tooltip="現在試験的にtest.jsonの情報をフォームに反映します."
+					data-tooltip="pdfから必要情報を抽出します."
 				>
 					PDF情報転記
 				</button>
@@ -409,9 +409,6 @@
 	<script src="static/js/zoom.js"></script>
 	<script src="static/js/input_rule.js"></script>
 
-	<!-- pdfを読み込んで転記する -->
-	<script src="static/js/pdf_handler.js"></script>
-
 	<!-- 研究者番号DBをリストに追加する関数 -->
 	<script type="module" src="static/js/nominate_pnumber.js"></script>
 
@@ -429,6 +426,9 @@
 
 	<!-- db 更新スクリプト -->
 	<script src="static/js/update_db.js" defer></script>
+
+	<!-- pdfを読み込んで転記する -->
+	<script type="module" src="static/js/pdf_handler.js"></script>
 
 	<!-- <script src="/client.js"></script> -->
 	<!-- <script src="./db_update.js"></script> -->

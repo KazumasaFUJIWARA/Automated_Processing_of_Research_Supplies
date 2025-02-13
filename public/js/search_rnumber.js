@@ -47,11 +47,6 @@ document.getElementById("研究者番号KAKEN検索").addEventListener("click", 
 			document.getElementById("研究者番号").value = data.researcher_number[0];
 			// 検索結果をresearchersテーブルに追加
 			try{
-				// /api/researchers/にPOST
-				// {
-				//  "researcherNumber": "string",
-				//  "researcherName": "string"
-				// }
 				const response2 = await fetch("/api/researchers/", {
 					method: "POST",
 					headers: {
