@@ -13,6 +13,28 @@
 1. ユーザーが上記のUIを確認し, 追加入力+訂正
 <!-- }}} -->
 
+<!-- {{{ ## ディレクトリ構成 -->
+## ディレクトリ構成
+<pre>
+.
+└── Automated_Processing_Research_Supply/
+    ├── READEME.md
+    ├── Dockerfile
+    ├── docker-compose.yml
+    ├── backend/
+    │   ├── main.py
+    │   ├── requirements.txt
+    │   └── db/
+    │       └── APRS.db
+    └── public/
+        ├── index.html
+        ├── style.css
+        └── js/
+            └── javascripts
+</pre>
+またaprs.envファイルをコンテナ外($home)に配置している
+<!-- }}} -->
+
 <!-- {{{ ## 各ボタンの処理 -->
 ## 各ボタンの処理
 ### Json 入力
@@ -39,14 +61,14 @@ KEKENのデータベースに研究者名を問い合わせ,
 研究者番号を取得する
 
 ### 課題情報DB検索
-指定された課題情報に対応する代表者、分担者、納品場所、設置場所を入力する
+指定された課題情報に対応する代表者、分担者、納品場所、設置場所を
+ローカルDB(projectsテーブルとallocationsテーブル)から入力する
 
 ### 課題番号DB検索
 指定された研究者情報を用いて,
 ローカルDB(allocatoinsテーブル)から,
 代表者か分担者として登録された課題番号を取得し,
 課題番号の候補として追加する.
-
 
 ### 課題番号KAKEN検索
 KAKENデータベースから,
@@ -106,63 +128,75 @@ Promptは以下
 ```
 <!-- }}} -->
 
+j!-- {{{ ## DB関連 -->
 ## DB関連
-DBの構成案は以下です.
-+ research.dbとして仮置きしてます
-
 <!-- {{{ ### table: allocations -->
 ### table: allocations
+#### table_info
 ```sql
-CREATE TABLE allocations (
-    ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    PN TEXT NOT NULL,
-    PI INTEGER NOT NULL,
-    CI INTEGER,
-    distributed_campus TEXT,
-    distributed_location TEXT,
-    installed_campus TEXT,
-    installed_location TEXT
+PRAGMA table_info(allocations );
+0|pnumber|TEXT|1||1
+1|PI|TEXT|1||2
+2|CI|TEXT|0||3
+3|distributed_campus|TEXT|0||0
+4|distributed_location|TEXT|0||0
+5|installed_campus|TEXT|0||0
+6|installed_location|TEXT|0||0
 );
 ```
 
-+ PN: Projects Number
-+ PI: Principle Investigator
-+ CI: Co-Investigator
-+ 若手や学振のように, 単独の研究用の科研費があるので, 分担者はNULLを許容します.
-+ 分担者は, 利用者が分担者の場合の利用を想定する. 複数いる場合は,
-人数分レコードを増やす.
-+ 初期は手入力で行ってもらってもいいですが,
-ご入力をさける為, KAKEN apiの利用を念頭に置きたいと考えています.
+#### カラム説明
++ pnumber: 課題情報番号
++ PI: 代表者課題番号
++ CI: 分担者課題番号(Null不可: NONE可)
++ distibuted_* : 納品先
++ instealled_* : 設置先
+
+#### 設計思想
++ (pnumber, PI, CI)が複合キーとなっていて,
+CIをNULLとすると検索に失敗する為, NONEとしている.
++ 利用者が代表者の場合は, CIはNONEを想定.
++ CIは, 利用者が分担者の場合の利用を想定する.
++ 基本的には, 課題情報KAKEN検索で情報の入力を想定しているが,
+4月などKAKEN更新が間に合っていない場合もあるので,
+手入力もうけつける
 <!-- }}} -->
 
 <!-- {{{ ### resarchers -->
 ### resarchers
+#### table_info
 ```sql
-CREATE TABLE resarchers (
-    number INTEGER PRIMARY KEY,
-    name TEXT NOT NULL
-);
+PRAGMA table_info(researchers );
+0|rnumber|INTEGER|0||1
+1|rname|TEXT|1||0
 ```
 
+#### カラム情報
++ rnumber: 研究者番号
++ rname: 研究者氏名(空白なし)
 
-+ 可能ならば, Kaken apiを利用して, 研究者番号から検索をかけたい.
+#### 設計思想
++ PI, CIの課題番号から研究者名を検索する際や,
+研究者氏名から課題番号の検索に使用
 + OCRの混乱回避のため, 姓名は区別して登録しない方向で検討
-+ アルファベットの場合は, 姓名の最初を大文字とし, 空白は利用しない方向で検討
-+ ミドルネームなどは, 書類上対応しない方向で検討
-+ 苗字のみの書類は, 対応しない方向で検討
++ 現在和名のみに対応, 外国人や日本人の英語表記などには対応していない.
 <!-- }}} -->
 
 <!-- {{{ ### projects -->
 ### projects
+#### table_info
 ```sql
-CREATE TABLE projects (
-    number TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    name TEXT NOT NULL
-);
+PRAGMA table_info(projects );
+0|pnumber|TEXT|0||1
+1|ptype|TEXT|1||0
+2|ptitle|TEXT|1||0
 ```
-<!-- }}} -->
 
+#### カラム情報
++ pnumber: 課題番号
++ ptype: 課題種別
++ ptitle: 課題名
+<!-- }}} -->
 <!-- }}} -->
 
 <!-- {{{ 科研費の処理系 -->
@@ -176,42 +210,11 @@ CREATE TABLE projects (
 什器は備品となるので, その都度選べるようにしたいです.
 <!-- }}} -->
 
-<!-- {{{ ## index.html のボタン挙動について -->
-## index.html のボタン挙動について
-
-本プロジェクトの `index.html` に含まれる各ボタンの ID と、それに紐づくスクリプトについて記述します。
-
-### JSON関連ボタン
-
-| ボタンID      | 説明                                       | 紐づくスクリプト |
-|--------------|--------------------------------|----------------|
-| `Json-import` | JSONファイルをインポートし、フォームへ反映 | `json_imp.js` |
-| `Json-export` | フォームの内容をJSONファイルとして出力 | `json_exp.js` |
-
-### PDF関連ボタン
-
-| ボタンID      | 説明                                       | 紐づくスクリプト |
-|--------------|--------------------------------|----------------|
-| `pdf-import` | `test.json` の情報をフォームに転記 | `pdf_demo.js` |
-| `pdfUpload` | PDFファイルをアップロードしてプレビュー | `pdf_preview.js` |
-
-### 研究者情報・課題情報関連ボタン
-
-| ボタンID                  | 説明                                      | 紐づくスクリプト |
-|--------------------------|--------------------------------|----------------|
-| `asign-info-from-db`     | 課題番号をDBから取得し、フォームへ反映 | `db_fetch.js`  |
-| `db-updated`             | フォームの内容をDBへ更新          | `db_update.js` |
-<!-- }}} -->
-
+<!-- {{{ ## Discussion -->
 ## Discussion
 ### UI
-+ UIに処理上のエラーがある場合は, ダイアログメッセージを出したいです.
-
-+ UIに提出できない状況である場合は, 警告をだしたいです.
-
-+ 分担の場合は, 代表者の表示もした方がよい気がしますが,
-分担でない場合は, いちいち表示させたくないと感じています.
-UIの設計にいいアイディアはありますか?
++ console.logやconsole.errorの使い方が今一つわかっていません
++ 「納品済み、発注済み、発注して下さい」のトグルをつける
 
 ### OCR
 + 生協とヨドバシは内税表記なので問題ないですが,
@@ -219,9 +222,5 @@ UIの設計にいいアイディアはありますか?
 + AIに金額を含めた項目判定を載せてもいいかもしれませんが,
 例外処理は事務と事前にかけあってほしいので,
 丁寧に対応しすぎない方がいいかもしれません.
-
-### DB
-+ sqlite3でもいいですか.
-+ アルファベット表記の対応はこれでいいでしょうか.
-+ 苗字のみの領収書は, 手書きを除いて少ない気がしますが,
-苗字のみの対応も必要でしょうか.
++ 外国語の領収書に対応するべきか
+<!-- }}} -->
