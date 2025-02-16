@@ -163,23 +163,23 @@ button:hover {
 }
 
 .payment-info {
-    display: flex; /* 横並び */
-    align-items: center; /* 垂直方向を中央揃え */
-    gap: 10px; /* 間隔を10pxに設定 */
+	display: flex; /* 横並び */
+	align-items: center; /* 垂直方向を中央揃え */
+	gap: 10px; /* 間隔を10pxに設定 */
 }
 
 .payment-method {
-    width: auto; /* 選択ボックスの幅をコンテンツに合わせる */
-    padding: 4px; /* 適切なパディングを維持 */
-    font-size: 14px;
-    text-align: center;
-    border: 1px solid #ddd;
-    /* border-radius: 4px; */
+	width: auto; /* 選択ボックスの幅をコンテンツに合わせる */
+	padding: 4px; /* 適切なパディングを維持 */
+	font-size: 14px;
+	text-align: center;
+	border: 1px solid #ddd;
+	/* border-radius: 4px; */
 }
 
 .kadai-button {
-    width: auto !important; /* 必要な内容の幅に合わせる */
-    white-space: nowrap; /* テキストがボタンの幅を超えた場合、折り返さない */
+	width: auto !important; /* 必要な内容の幅に合わせる */
+	white-space: nowrap; /* テキストがボタンの幅を超えた場合、折り返さない */
 	 cursor: pointer;
 	 display: inline-block;
 	 position: relative;
@@ -187,23 +187,23 @@ button:hover {
 
 /* ツールチップのデザイン */
 .kadai-button::after {
-    content: attr(data-tooltip); /* data-tooltip 属性の値を表示 */
-    position: absolute;
+	content: attr(data-tooltip); /* data-tooltip 属性の値を表示 */
+	position: absolute;
 	 /* ボタンの下に表示 */
 	 top: 120%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.75);
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 5px;
-    white-space: pre-line; /* テキストを折り返す */
-    font-size: 12px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease-in-out, visibility 0.3s;
+	left: 50%;
+	transform: translateX(-50%);
+	background-color: rgba(0, 0, 0, 0.75);
+	color: #fff;
+	padding: 6px 10px;
+	border-radius: 5px;
+	white-space: pre-line; /* テキストを折り返す */
+	font-size: 12px;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.3s ease-in-out, visibility 0.3s;
 	 min-width: 200px; /* 最小幅を設定 */
-    max-width: 300px; /* 画面外に飛び出さないように制限 */
+	max-width: 300px; /* 画面外に飛び出さないように制限 */
 	 word-wrap: normal; /* ハイフンでの折り返しを無効にする */
 	 /* overflow-wrap: break-word; [> 長い単語を折り返す <] */
 	 overflow: hidden;
@@ -212,31 +212,31 @@ button:hover {
 }
 
 .pain-button {
-    width: auto !important; /* 必要な内容の幅に合わせる */
-    white-space: nowrap; /* テキストがボタンの幅を超えた場合、折り返さない */
+	width: auto !important; /* 必要な内容の幅に合わせる */
+	white-space: nowrap; /* テキストがボタンの幅を超えた場合、折り返さない */
 	 cursor: pointer;
 	 display: inline-block;
 	 position: relative;
 }
 
 .pain-button::after {
-    content: attr(data-tooltip); /* data-tooltip 属性の値を表示 */
-    position: absolute;
+	content: attr(data-tooltip); /* data-tooltip 属性の値を表示 */
+	position: absolute;
 	 /* ボタンの上に表示 */
 	 bottom: 120%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.75);
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 5px;
-    white-space: pre-line; /* テキストを折り返す */
-    font-size: 12px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease-in-out, visibility 0.3s;
+	left: 50%;
+	transform: translateX(-50%);
+	background-color: rgba(0, 0, 0, 0.75);
+	color: #fff;
+	padding: 6px 10px;
+	border-radius: 5px;
+	white-space: pre-line; /* テキストを折り返す */
+	font-size: 12px;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.3s ease-in-out, visibility 0.3s;
 	 min-width: 200px; /* 最小幅を設定 */
-    max-width: 300px; /* 画面外に飛び出さないように制限 */
+	max-width: 300px; /* 画面外に飛び出さないように制限 */
 	 word-wrap: normal; /* ハイフンでの折り返しを無効にする */
 	 /* overflow-wrap: break-word; [> 長い単語を折り返す <] */
 	 overflow: hidden;
@@ -246,13 +246,13 @@ button:hover {
 
 /* ホバー時に表示 */
 .kadai-button:hover::after {
-    opacity: 1;
-    visibility: visible;
+	opacity: 1;
+	visibility: visible;
 }
 
 .pain-button:hover::after{
-    opacity: 1;
-    visibility: visible;
+	opacity: 1;
+	visibility: visible;
 }
 
 #system-input {
@@ -260,12 +260,12 @@ button:hover {
 }
 
 #pdfPreview {
-    width: 100%;
-    height: 85%;
-    border: 1px solid #ddd;
-    position: relative; /* 必須: ボタンを相対位置で配置する基準 */
-    overflow: auto;
-    background-color: #f9f9f9;
+	width: 100%;
+	height: 85%;
+	border: 1px solid #ddd;
+	position: relative; /* 必須: ボタンを相対位置で配置する基準 */
+	overflow: auto;
+	background-color: #f9f9f9;
 }
 
 .quantity input {
@@ -273,8 +273,8 @@ button:hover {
 
 /* {{{ table */
 table {
-    width: 100%;
-    border-collapse: collapse; /* セルの境界線を重ねる */
+	width: 100%;
+	border-collapse: collapse; /* セルの境界線を重ねる */
 	 margin-top: 10px;
 }
 
@@ -283,19 +283,29 @@ th {
 }
 
 table td {
-    padding: 1px 10px; /* セル内の余白を設定 */
-    line-height: 1.3; /* 行の高さを調整 */
-    /* height: 70%; [> 高さを70%に調整 <] */
-    text-align: left; /* テキストの左揃え */
-    border: 1px solid #ddd; /* セルの境界線 */
+	padding: 1px 10px; /* セル内の余白を設定 */
+	line-height: 1.3; /* 行の高さを調整 */
+	/* height: 70%; [> 高さを70%に調整 <] */
+	text-align: left; /* テキストの左揃え */
+	border: 1px solid #ddd; /* セルの境界線 */
 }
 
 table tr:nth-child(even) {
-    background-color: #f0fff0; /* 偶数行を薄い緑に設定 */
+	background-color: #f0fff0; /* 偶数行を薄い緑に設定 */
 }
 
 table tr:nth-child(odd) {
-    background-color: #ffffff; /* 奇数行を白色に設定（任意） */
+	background-color: #ffffff; /* 奇数行を白色に設定（任意） */
 }
 
+/* }}} */
+
+/* {{{ checkbox */
+.radio-nouhin {
+	display: block;
+	margin-top: 10px;
+	margin-left: 30px;
+	justify-content: space-between;
+	gap: 20px;
+}
 /* }}} */
